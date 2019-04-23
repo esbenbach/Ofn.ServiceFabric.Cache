@@ -15,33 +15,30 @@
 
     public abstract class BaseCacheStoreService : StatefulService, ICacheStoreService
     {
-        const int BytesInMegabyte = 1048576; // 1024 * 1024
+        private const int BytesInMegabyte = 1048576; // 1024 * 1024
+
         internal const int ByteSizeOffset = 250;
 
-        private const string CacheStoreProperty = "CacheStore";
+        internal const string CacheStoreProperty = "CacheStore";
 
-        private const string CacheStorePropertyValue = "true";
+        internal const string CacheStorePropertyValue = "true";
 
-        
-        
-        const string CacheStoreName = "CacheStore";
+        private readonly Uri serviceUri;
 
-        const string CacheStoreMetadataName = "CacheStoreMetadata";
-
-        const string CacheStoreMetadataKey = "CacheStoreMetadata";
-
-        private const string ListenerName = "CacheStoreServiceListener";
-        private readonly Uri _serviceUri;
         private readonly IReliableStateManagerReplica2 _reliableStateManagerReplica;
+
         private readonly Action<string> _log;
+
         private readonly ISystemClock _systemClock;
+
         private readonly CacheStoreSettings settings;
-        private int _partitionCount = 1;
+
+        private int partitionCount = 1;
 
         public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings = null, Action<string> log = null)
             : base(context)
         {
-            _serviceUri = context.ServiceName;
+            serviceUri = context.ServiceName;
             _log = log;
             _systemClock = new SystemClock();
             this.settings = settings ?? new CacheStoreSettings();
@@ -60,7 +57,7 @@
         public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, Action<string> log)
             : base(context, reliableStateManagerReplica)
         {
-            _serviceUri = context.ServiceName;
+            serviceUri = context.ServiceName;
             _reliableStateManagerReplica = reliableStateManagerReplica;
             _log = log;
             _systemClock = systemClock;
@@ -70,13 +67,13 @@
         protected async override Task OnOpenAsync(ReplicaOpenMode openMode, CancellationToken cancellationToken)
         {
             var client = new FabricClient();
-            await client.PropertyManager.PutPropertyAsync(_serviceUri, CacheStoreProperty, CacheStorePropertyValue);
-            _partitionCount = (await client.QueryManager.GetPartitionListAsync(_serviceUri)).Count;
+            await client.PropertyManager.PutPropertyAsync(serviceUri, CacheStoreProperty, CacheStorePropertyValue);
+            partitionCount = (await client.QueryManager.GetPartitionListAsync(serviceUri)).Count;
         }
 
         public async Task<byte[]> GetCachedItemAsync(string key)
         {
-            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreName);
+            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
 
             var cacheResult = await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
@@ -89,11 +86,19 @@
                 var cachedItem = cacheResult.Value;
                 var expireTime = cachedItem.AbsoluteExpiration;
 
-                // cache item not expired
                 if (_systemClock.UtcNow < expireTime)
                 {
-                    await SetCachedItemAsync(key, cachedItem.Value, cachedItem.SlidingExpiration, cachedItem.AbsoluteExpiration);
+                    if (cachedItem.SlidingExpiration != null)
+                    { 
+                        // Update the expiration time if sliding.
+                        await SetCachedItemAsync(key, cachedItem.Value, cachedItem.SlidingExpiration, cachedItem.AbsoluteExpiration);
+                    }
+
                     return cachedItem.Value;
+                }
+                else // Remove expired items on access - its a bit weird but it works
+                {
+                    await RemoveCachedItemAsync(key);
                 }
             }
 
@@ -105,20 +110,20 @@
             if (slidingExpiration.HasValue)
             {
                 var now = _systemClock.UtcNow;
-                absoluteExpiration = now.AddMilliseconds(slidingExpiration.Value.TotalMilliseconds);                
+                absoluteExpiration = now.AddMilliseconds(slidingExpiration.Value.TotalMilliseconds);
             }
 
-            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreName);
-            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreMetadataName);
+            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) => 
             {
                 _log?.Invoke($"Set cached item called with key: {key} on partition id: {Partition?.PartitionInfo.Id}");
            
                 Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
-                var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
+                var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
 
-                var cacheStoreInfo = (await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreMetadataKey, LockMode.Update)).Value ?? new CacheStoreMetadata(0, null, null);
+                var cacheStoreInfo = (await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update)).Value ?? new CacheStoreMetadata(0, null, null);
                 var existingCacheItem = (await getCacheItem(key)).Value;
                 var cachedItem = ApplyAbsoluteExpiration(existingCacheItem, absoluteExpiration) ?? new CachedItem(value, null, null, slidingExpiration, absoluteExpiration);
 
@@ -126,7 +131,7 @@
                 if (cacheStoreInfo.FirstCacheKey == null)
                 {
                     var metadata = new CacheStoreMetadata(value.Length + ByteSizeOffset, key, key);
-                    await cacheStoreMetadata.SetAsync(tx, CacheStoreMetadataKey, metadata);
+                    await cacheStoreMetadata.SetAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, metadata);
                     await cacheStore.SetAsync(tx, key, cachedItem);
                 }
                 else
@@ -150,8 +155,8 @@
 
         public async Task RemoveCachedItemAsync(string key)
         {
-            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreName);
-            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreMetadataName);
+            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
@@ -163,7 +168,7 @@
                     Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
                     var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
 
-                    var cacheStoreInfo = (await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreMetadataKey, LockMode.Update)).Value ?? new CacheStoreMetadata(0, null, null);
+                    var cacheStoreInfo = (await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update)).Value ?? new CacheStoreMetadata(0, null, null);
                     var result = await linkedDictionaryHelper.Remove(cacheStoreInfo, cacheResult.Value);
 
                     await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
@@ -173,26 +178,31 @@
 
         protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
         {
-            yield return new ServiceReplicaListener(context =>
-                new FabricTransportServiceRemotingListener(context, this), ListenerName);
+            yield return new ServiceReplicaListener(context => new FabricTransportServiceRemotingListener(context, this), this.settings.ListenerName);
         }
 
         protected override async Task RunAsync(CancellationToken cancellationToken)
         {
-            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreName);
-            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreMetadataName);
+            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
 
             while (true)
             {
-                await RemoveLeastRecentlyUsedCacheItemWhenOverMaxCacheSize(cancellationToken);
-                await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+                await RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(this.settings.CachePruningInterval), cancellationToken);
             }
         }
 
-        protected async Task RemoveLeastRecentlyUsedCacheItemWhenOverMaxCacheSize(CancellationToken cancellationToken)
+        /// <summary>
+        /// Removes the least recently used cache items from the cache when over maximum size.
+        /// </summary>
+        /// <remarks>This is rather odd in that nothing is removed when it is expiring</remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns></returns>
+        protected async Task RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(CancellationToken cancellationToken)
         {
-            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreName);
-            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreMetadataName);
+            var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+            var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
             bool continueRemovingItems = true;
 
             while (continueRemovingItems)
@@ -202,7 +212,8 @@
 
                 await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancelToken, state) =>
                 {
-                var metadata = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreMetadataKey, LockMode.Update);
+
+                    var metadata = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update);
 
                 if (metadata.HasValue)
                 {
@@ -242,13 +253,14 @@
                         }
                     }
                 });
+
                 await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
             }
         }
 
         private long GetMaxSizeInBytes()
         {
-            return (this.settings.MaxCacheSize * BytesInMegabyte) / _partitionCount;
+            return (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
         }
 
         private async Task ApplyChanges(ITransaction tx, IReliableDictionary<string, CachedItem> cachedItemStore, IReliableDictionary<string, CacheStoreMetadata> cacheStoreMetadata, LinkedDictionaryItemsChanged linkedDictionaryItemsChanged)
@@ -258,7 +270,7 @@
                 await cachedItemStore.SetAsync(tx, cacheItem.Key, cacheItem.Value);
             }
     
-            await cacheStoreMetadata.SetAsync(tx, CacheStoreMetadataKey, linkedDictionaryItemsChanged.CacheStoreMetadata);
+            await cacheStoreMetadata.SetAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, linkedDictionaryItemsChanged.CacheStoreMetadata);
         }
 
         private CachedItem ApplyAbsoluteExpiration(CachedItem cachedItem, DateTimeOffset? absoluteExpiration)
@@ -267,6 +279,7 @@
             {
                 return new CachedItem(cachedItem.Value, cachedItem.BeforeCacheKey, cachedItem.AfterCacheKey, cachedItem.SlidingExpiration, absoluteExpiration);
             }
+
             return null;
         }
     }

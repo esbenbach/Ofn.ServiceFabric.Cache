@@ -1,48 +1,55 @@
 ﻿namespace Ofn.ServiceFabric.Cache
 {
-    using Microsoft.ServiceFabric.Services.Client;
-    using Microsoft.ServiceFabric.Services.Remoting.Client;
-    using Microsoft.ServiceFabric.Services.Remoting.V2.FabricTransport.Client;
     using System;
     using System.Collections.Concurrent;
     using System.Fabric;
     using System.Fabric.Description;
     using System.Fabric.Query;
-    using System.Threading.Tasks;
     using System.Linq;
     using System.Security.Cryptography;
     using System.Text;
-    using Ofn.ServiceFabric.Cache.Abstractions;
+    using System.Threading.Tasks;
     using Microsoft.Extensions.Options;
+    using Microsoft.ServiceFabric.Services.Client;
+    using Microsoft.ServiceFabric.Services.Remoting.Client;
+    using Microsoft.ServiceFabric.Services.Remoting.V2.FabricTransport.Client;
+    using Ofn.ServiceFabric.Cache.Abstractions;
 
-    class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
+    public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
     {
         private const string CacheStoreProperty = "CacheStore";
+
         private const string CacheStorePropertyValue = "true";
+
         private const string ListenerName = "CacheStoreServiceListener";
-        private Uri _serviceUri;
-        private readonly string _endpointName;
-        private readonly FabricClient _fabricClient;
+
+        private Uri serviceUri;
+
+        private readonly string endpointName;
+
+        private readonly FabricClient fabricClient;
+
         private ServicePartitionList _partitionList;
-        private readonly ConcurrentDictionary<Guid, ICacheStoreService> _cacheStores;
+
+        private readonly ConcurrentDictionary<Guid, ICacheStoreService> cacheStores;
 
         public DistributedCacheStoreLocator(IOptions<ServiceFabricCacheOptions> options)
         {
             var fabricOptions = options.Value;
-            _serviceUri = fabricOptions.CacheStoreServiceUri;
-            _endpointName = fabricOptions.CacheStoreEndpointName ?? ListenerName;
+            this.serviceUri = fabricOptions.CacheStoreServiceUri;
+            this.endpointName = fabricOptions.CacheStoreEndpointName ?? ListenerName;
                        
-            _fabricClient = new FabricClient();
-            _cacheStores = new ConcurrentDictionary<Guid, ICacheStoreService>();
+            this.fabricClient = new FabricClient();
+            this.cacheStores = new ConcurrentDictionary<Guid, ICacheStoreService>();
         }
 
         public async Task<ICacheStoreService> GetCacheStoreProxy(string cacheKey)
         {
             // Try to locate a cache store if one is not configured
-            if (_serviceUri == null)
+            if (serviceUri == null)
             {
-                _serviceUri = await LocateCacheStoreAsync();
-                if (_serviceUri == null)
+                serviceUri = await LocateCacheStoreAsync();
+                if (serviceUri == null)
                 {
                     throw new CacheStoreNotFoundException("Cache store not found in Service Fabric cluster.  Try setting the 'CacheStoreServiceUri' configuration option to the location of your cache store.");
                 }
@@ -50,7 +57,7 @@
 
             var partitionInformation = await GetPartitionInformationForCacheKey(cacheKey);
 
-            return _cacheStores.GetOrAdd(partitionInformation.Id, key => {
+            return cacheStores.GetOrAdd(partitionInformation.Id, key => {
                 var info = (Int64RangePartitionInformation)partitionInformation;
                 var resolvedPartition = new ServicePartitionKey(info.LowKey);
 
@@ -59,7 +66,7 @@
                     return new FabricTransportServiceRemotingClientFactory();
                 });
 
-                return proxyFactory.CreateServiceProxy<ICacheStoreService>(_serviceUri, resolvedPartition, Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.Default, _endpointName);
+                return proxyFactory.CreateServiceProxy<ICacheStoreService>(serviceUri, resolvedPartition, Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.Default, endpointName);
             });
         }
 
@@ -71,7 +78,7 @@
 
             if (_partitionList == null)
             {
-                _partitionList = await _fabricClient.QueryManager.GetPartitionListAsync(_serviceUri);
+                _partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
             }
 
             var partition = _partitionList.Single(p => ((Int64RangePartitionInformation)p.PartitionInformation).LowKey <= key && ((Int64RangePartitionInformation)p.PartitionInformation).HighKey >= key);
@@ -89,7 +96,7 @@
 
                 while (hasPages)
                 {
-                    var apps = await _fabricClient.QueryManager.GetApplicationPagedListAsync(query);
+                    var apps = await fabricClient.QueryManager.GetApplicationPagedListAsync(query);
 
                     query.ContinuationToken = apps.ContinuationToken;
 
@@ -117,7 +124,7 @@
 
                 while (hasPages)
                 {
-                    var services = await _fabricClient.QueryManager.GetServicePagedListAsync(query);
+                    var services = await fabricClient.QueryManager.GetServicePagedListAsync(query);
 
                     query.ContinuationToken = services.ContinuationToken;
 
@@ -140,7 +147,7 @@
         {
             try
             {
-                var isCacheStore = await _fabricClient.PropertyManager.GetPropertyAsync(serviceName, CacheStoreProperty);
+                var isCacheStore = await fabricClient.PropertyManager.GetPropertyAsync(serviceName, CacheStoreProperty);
                 return isCacheStore.GetValue<string>() == CacheStorePropertyValue;
             }
             catch { }

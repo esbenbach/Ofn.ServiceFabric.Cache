@@ -1,9 +1,5 @@
 ﻿namespace Ofn.ServiceFabric.Cache
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Text;
-
     /// <summary>Provides settings for the cache store implementation such as max size and default expiration settings.</summary>
     public class CacheStoreSettings
     {
@@ -12,16 +8,22 @@
         /// </summary>
         public long MaxCacheSize { get; set; } = 100;
 
+        /// <summary>
+        /// The byte offset used for dynamically sizing the cache.
+        /// </summary>
+        public int ByteSizeOffset { get; set; } = 250;
 
+        /// <summary>
+        /// The name of the cache service listener.
+        /// </summary>
+        public string ListenerName { get; set; } = "CacheStoreServiceListener";
 
-        private const string CacheStoreProperty = "CacheStore";
-        private const string CacheStorePropertyValue = "true";
-        const int BytesInMegabyte = 1048576;
-        const int ByteSizeOffset = 250;
-        const string CacheStoreName = "CacheStore";
-        const string CacheStoreMetadataName = "CacheStoreMetadata";
-        const string CacheStoreMetadataKey = "CacheStoreMetadata";
-        private const string ListenerName = "CacheStoreServiceListener";
-        
+        /// <summary>
+        /// The cache pruning interval in seconds.
+        /// </summary>
+        /// <remarks>
+        /// This indicates how often the service will scan for, and remove items that should be removed from the cache in case the cache is over its size limit.
+        /// </remarks>
+        public int CachePruningInterval { get; set; } = 15;
     }
 }

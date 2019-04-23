@@ -11,7 +11,9 @@
     public class ServiceFabricDistributedCache : IDistributedCache
     {
         private readonly IDistributedCacheStoreLocator _distributedCacheStoreLocator;
+
         private readonly ISystemClock _systemClock;
+
         private readonly Guid _cacheStoreId;
 
         public ServiceFabricDistributedCache(IOptions<ServiceFabricCacheOptions> options, IDistributedCacheStoreLocator distributedCacheStoreLocator, ISystemClock systemClock)
@@ -72,6 +74,11 @@
             if (value == null) throw new ArgumentNullException(nameof(value));
 
             var absoluteExpireTime = GetAbsoluteExpiration(_systemClock.UtcNow, options);
+            if (absoluteExpireTime == null && options.SlidingExpiration == null)
+            {
+                options.SetSlidingExpiration(TimeSpan.FromSeconds(60));
+            }
+
             ValidateOptions(options.SlidingExpiration, absoluteExpireTime);
 
             key = FormatCacheKey(key);

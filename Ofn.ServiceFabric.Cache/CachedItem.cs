@@ -16,9 +16,13 @@
         }
 
         public byte[] Value { get; private set; }
+
         public string BeforeCacheKey { get; private set; }
+
         public string AfterCacheKey { get; private set; }
+
         public TimeSpan? SlidingExpiration { get; private set; }
+
         public DateTimeOffset? AbsoluteExpiration { get; private set; }
     }
 

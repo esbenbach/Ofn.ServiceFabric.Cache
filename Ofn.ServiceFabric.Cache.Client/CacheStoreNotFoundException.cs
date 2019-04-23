@@ -1,12 +1,11 @@
-﻿using System;
-
-namespace Ofn.ServiceFabric.Cache
+﻿namespace Ofn.ServiceFabric.Cache
 {
-    class CacheStoreNotFoundException : Exception
+    using System;
+
+    public class CacheStoreNotFoundException : Exception
     {
         public CacheStoreNotFoundException(string message) : base(message)
         {
-
         }
     }
 }
