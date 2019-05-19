@@ -6,7 +6,8 @@
     <IsServiceFabricServiceProject>True</IsServiceFabricServiceProject>
     <ServerGarbageCollection>True</ServerGarbageCollection>
     <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
-    <TargetLatestRuntimePatch>False</TargetLatestRuntimePatch>
+    <TargetLatestRuntimePatch>True</TargetLatestRuntimePatch>
+    <RuntimeFrameworkVersion>2.2.5</RuntimeFrameworkVersion>
   </PropertyGroup>
 
   <ItemGroup>
