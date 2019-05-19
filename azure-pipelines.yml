@@ -15,8 +15,15 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
-- task: NuGetToolInstaller@0
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '2.2.204'
 
+- task: NuGetToolInstaller@0
+  inputs:
+    checkLatest: true
+    
 - task: NuGetCommand@2
   inputs:
     command: 'restore'
