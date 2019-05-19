@@ -9,6 +9,7 @@
     <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
     <TargetLatestRuntimePatch>True</TargetLatestRuntimePatch>
     <RuntimeFrameworkVersion>2.2.5</RuntimeFrameworkVersion>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>

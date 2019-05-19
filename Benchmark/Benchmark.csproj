@@ -3,6 +3,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.2</TargetFramework>
+    <TargetLatestRuntimePatch>True</TargetLatestRuntimePatch>
+    <RuntimeFrameworkVersion>2.2.5</RuntimeFrameworkVersion>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>

@@ -18,6 +18,7 @@
     <RepositoryType>git</RepositoryType>
     <Copyright></Copyright>
     <Version>0.1.0</Version>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
     <ItemGroup>
