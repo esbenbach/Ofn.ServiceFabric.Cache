@@ -17,3 +17,6 @@ Well there is only really one reason, I stumpled upon the SoCreate distributed c
 I have struggled with caching before, and figured I could have this as my personal pet hobby project, while also getting stuff done at work. 
 
 Maybe something will come of it, maybe not - but there it is, no good reason what so ever - but who said you needed a good reason :-)
+
+
+[![Build Status](https://dev.azure.com/Ofn/Playground/_apis/build/status/esbenbach.Ofn.ServiceFabric.Cache?branchName=master)](https://dev.azure.com/Ofn/Playground/_build/latest?definitionId=1&branchName=master)
