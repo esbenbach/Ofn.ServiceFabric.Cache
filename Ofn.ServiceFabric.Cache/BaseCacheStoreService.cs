@@ -6,6 +6,7 @@
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Internal;
+    using Microsoft.Extensions.Logging;
     using Microsoft.ServiceFabric.Data;
     using Microsoft.ServiceFabric.Data.Collections;
     using Microsoft.ServiceFabric.Services.Communication.Runtime;
@@ -27,7 +28,7 @@
 
         private readonly IReliableStateManagerReplica2 _reliableStateManagerReplica;
 
-        private readonly Action<string> _log;
+        private readonly ILogger<ICacheStoreService> logger;
 
         private readonly ISystemClock _systemClock;
 
@@ -35,11 +36,11 @@
 
         private int partitionCount = 1;
 
-        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings = null, Action<string> log = null)
+        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings = null, ILogger<ICacheStoreService> logger = null)
             : base(context)
         {
             serviceUri = context.ServiceName;
-            _log = log;
+            this.logger = logger;
             _systemClock = new SystemClock();
             this.settings = settings ?? new CacheStoreSettings();
 
@@ -54,12 +55,12 @@
             }
         }
 
-        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, Action<string> log)
+        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, ILogger<ICacheStoreService> logger = null)
             : base(context, reliableStateManagerReplica)
         {
             serviceUri = context.ServiceName;
             _reliableStateManagerReplica = reliableStateManagerReplica;
-            _log = log;
+            this.logger = logger;
             _systemClock = systemClock;
             this.settings = settings;
         }
@@ -77,7 +78,7 @@
 
             var cacheResult = await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
-                _log?.Invoke($"Get cached item called with key: {key} on partition id: {Partition?.PartitionInfo.Id}");
+                logger.LogTrace("Get cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
                 return await cacheStore.TryGetValueAsync(tx, key);
             });
 
@@ -118,7 +119,7 @@
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) => 
             {
-                _log?.Invoke($"Set cached item called with key: {key} on partition id: {Partition?.PartitionInfo.Id}");
+                logger.LogTrace("Set cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
            
                 Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
                 var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
@@ -160,7 +161,7 @@
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
-                _log?.Invoke($"Remove cached item called with key: {key} on partition id: {Partition?.PartitionInfo.Id}");
+                logger.LogTrace("Remove cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
 
                 var cacheResult = await cacheStore.TryRemoveAsync(tx, key);
                 if (cacheResult.HasValue)
@@ -215,9 +216,9 @@
 
                     var metadata = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update);
 
-                if (metadata.HasValue)
-                {
-                    _log?.Invoke($"Size: {metadata.Value.Size}  Max Size: {GetMaxSizeInBytes()}");
+                    if (metadata.HasValue)
+                    {
+                        logger.LogTrace("Size: {CurrentCacheSize}, MaxSize: {MaxCacheSize}", metadata.Value.Size, GetMaxSizeInBytes());
 
                         if (metadata.Value.Size > GetMaxSizeInBytes())
                         {
@@ -242,7 +243,7 @@
                             }
                             else  // Remove 
                             {
-                                _log?.Invoke($"Auto Removing: {metadata.Value.FirstCacheKey}");
+                                logger.LogTrace("Auto Removing {key}", metadata.Value.FirstCacheKey);
 
                                 var result = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
                                 await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);

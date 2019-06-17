@@ -24,8 +24,9 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="2.2.0" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.2.0" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
       <PackageReference Include="Microsoft.Extensions.Options" Version="2.2.0" />
-      <PackageReference Include="Microsoft.ServiceFabric.Services.Remoting" Version="3.3.658" />
+      <PackageReference Include="Microsoft.ServiceFabric.Services.Remoting" Version="3.4.639" />
     </ItemGroup>
 
     <ItemGroup>
