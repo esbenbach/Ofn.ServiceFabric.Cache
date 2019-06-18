@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Fabric;
 using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
-using Microsoft.ServiceFabric.Data;
 
 namespace CacheConsumer
 {
@@ -42,9 +39,24 @@ namespace CacheConsumer
                                         services => services
                                             .AddSingleton<StatelessServiceContext>(serviceContext))
                                     .UseContentRoot(Directory.GetCurrentDirectory())
+                                    .ConfigureAppConfiguration((hostingContext, config) =>
+                                    {
+                                        var env = hostingContext.HostingEnvironment;
+                                        config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                                              .AddJsonFile($"appsettings.{env.EnvironmentName}.json",
+                                                  optional: true, reloadOnChange: true);
+                                        config.AddEnvironmentVariables();
+                                    })
                                     .UseStartup<Startup>()
                                     .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
                                     .UseUrls(url)
+                                     .ConfigureLogging((hostingContext, logging) =>
+                                    {
+                                        logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
+                                        logging.AddConsole();
+                                        logging.AddDebug();
+                                        logging.AddEventSourceLogger();
+                                    })
                                     .Build();
                     }))
             };
