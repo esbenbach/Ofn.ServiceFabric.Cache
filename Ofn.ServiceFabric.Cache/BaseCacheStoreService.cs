@@ -78,7 +78,7 @@
 
             var cacheResult = await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
-                logger.LogTrace("Get cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
+                logger?.LogTrace("Get cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
                 return await cacheStore.TryGetValueAsync(tx, key);
             });
 
@@ -119,7 +119,7 @@
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) => 
             {
-                logger.LogTrace("Set cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
+                logger?.LogTrace("Set cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
            
                 Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
                 var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
@@ -161,7 +161,7 @@
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
-                logger.LogTrace("Remove cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
+                logger?.LogTrace("Remove cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
 
                 var cacheResult = await cacheStore.TryRemoveAsync(tx, key);
                 if (cacheResult.HasValue)
@@ -218,7 +218,7 @@
 
                     if (metadata.HasValue)
                     {
-                        logger.LogTrace("Size: {CurrentCacheSize}, MaxSize: {MaxCacheSize}", metadata.Value.Size, GetMaxSizeInBytes());
+                        logger?.LogTrace("Size: {CurrentCacheSize}, MaxSize: {MaxCacheSize}", metadata.Value.Size, GetMaxSizeInBytes());
 
                         if (metadata.Value.Size > GetMaxSizeInBytes())
                         {
@@ -243,7 +243,7 @@
                             }
                             else  // Remove 
                             {
-                                logger.LogTrace("Auto Removing {key}", metadata.Value.FirstCacheKey);
+                                logger?.LogTrace("Auto Removing {key}", metadata.Value.FirstCacheKey);
 
                                 var result = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
                                 await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
@@ -255,7 +255,6 @@
                     }
                 });
 
-                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
             }
         }
 
