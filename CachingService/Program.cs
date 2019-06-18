@@ -2,7 +2,10 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.ServiceFabric.Services.Runtime;
+using Ofn.ServiceFabric.Cache.Abstractions;
 
 namespace CacheHost
 {
@@ -19,8 +22,16 @@ namespace CacheHost
                 // Registering a service maps a service type name to a .NET type.
                 // When Service Fabric creates an instance of this service type,
                 // an instance of the class is created in this host process.
+                var provider = new ServiceCollection()
+                        .AddLogging(logging =>
+                        {
+                            logging.AddConsole();
+                            logging.AddDebug();
+                            logging.AddEventSourceLogger();
+                            logging.SetMinimumLevel(LogLevel.Trace);
+                        }).BuildServiceProvider();
 
-                await ServiceRuntime.RegisterServiceAsync("CacheHostType", context => new CacheHost(context));
+                await ServiceRuntime.RegisterServiceAsync("CacheHostType", context => new CacheHost(context, provider.GetService<ILogger<ICacheStoreService>>()));
 
                 ServiceEventSource.Current.ServiceTypeRegistered(Process.GetCurrentProcess().Id, typeof(CacheHost).Name);
 
