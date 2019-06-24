@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.539
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29009.5
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{A07B5EB6-E848-4116-A8D0-A826331D98C6}") = "Ofn.ServiceFabric.Cache.Hosting", "Ofn.ServiceFabric.Cache.Hosting\Ofn.ServiceFabric.Cache.Hosting.sfproj", "{90382225-97FF-42C4-BB68-AD2A3F4E8544}"
 EndProject
@@ -20,6 +20,11 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CacheConsumer", "CacheConsumer\CacheConsumer.csproj", "{0AC3C0B8-1958-4C68-AE0A-50BFC82E0B64}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benchmark.csproj", "{A0C94E7F-4299-4D93-AC88-BF9FCFEC8460}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{094E989F-F530-4703-A6B3-3C7F5BE3390E}"
+	ProjectSection(SolutionItems) = preProject
+		Shared.targets = Shared.targets
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
