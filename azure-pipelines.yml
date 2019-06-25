@@ -20,10 +20,6 @@ steps:
     packageType: 'sdk'
     version: '2.2.204'
 
-- task: DotNetCoreCLI@2
-  inputs:
-    command: 'restore'
-
 - task: NuGetToolInstaller@0
   inputs:
     checkLatest: true
@@ -38,6 +34,8 @@ steps:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+    clean: true
+    restoreNugetPackages: true
 
 - task: VSTest@2
   inputs:
