@@ -3,39 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <Authors>Esben Bach</Authors>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageLicenseUrl>https://raw.githubusercontent.com/esbenbach/Ofn.ServiceFabric.Cache/master/LICENSE</PackageLicenseUrl>
-    <Description>
-      An implementation of the IDistributedCache that uses a Stateful Reliable Service Fabric service to act as the cache store.
-      You can use this library to setup a distributed cache and use Service Fabric instead of Redis or SQL Server.
-      Thanks goes to https://github.com/SoCreate/service-fabric-distributed-cache from which this project was originally based on.
-     </Description>
-    <RepositoryUrl>https://github.com/esbenbach/Ofn.ServiceFabric.Cache</RepositoryUrl>
-    <PackageTags>Cache DistributedCache ServiceFabric</PackageTags>
-    <PackageProjectUrl>https://github.com/esbenbach/Ofn.ServiceFabric.Cache</PackageProjectUrl>
-    <RepositoryType>git</RepositoryType>
-    <Copyright></Copyright>
-    <Version>0.1.0</Version>
-    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <CodeAnalysisRuleSet />
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <CodeAnalysisRuleSet />
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <CodeAnalysisRuleSet />
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <CodeAnalysisRuleSet />
-  </PropertyGroup>
   <Import Project="$(SolutionDir)\Shared.targets" />
   
   <ItemGroup>
