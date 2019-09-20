@@ -44,6 +44,6 @@ steps:
 - task: DotNetCoreCLI@2
     displayName: Pack
     inputs:
-      command: pack
-      packagesToPack: $(projectPaths)
+      command: 'pack'
+      packagesToPack: '$(projectPaths)'
       nobuild: true
