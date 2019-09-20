@@ -10,9 +10,10 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'x64'
-  buildConfiguration: 'Release'
+  solution: **/*.sln
+  buildPlatform: x64
+  buildConfiguration: Release
+  projectPaths: src/**/*.csproj
 
 steps:
 - task: UseDotNet@2
@@ -39,3 +40,10 @@ steps:
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+    displayName: Pack
+    inputs:
+      command: pack
+      packagesToPack: $(projectPaths)
+      nobuild: true
