@@ -10,10 +10,10 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: **/*.sln
-  buildPlatform: x64
-  buildConfiguration: Release
-  projectPaths: src/**/*.csproj
+  solution: '**/*.sln'
+  buildPlatform: 'x64'
+  buildConfiguration: 'Release'
+  projectPaths: 'src/**/*.csproj'
 
 steps:
 - task: UseDotNet@2
