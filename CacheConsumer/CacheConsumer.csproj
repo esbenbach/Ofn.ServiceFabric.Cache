@@ -11,7 +11,7 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
-  <Import Project="$(SolutionDir)\Shared.targets" />
+  <Import Project="../Shared.targets" />
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.App" />
