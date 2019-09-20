@@ -12,11 +12,9 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
-  <Import Project="$(SolutionDir)\Shared.targets" />
-
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.4.639" />
+    <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.4.664" />
   </ItemGroup>
 
   <ItemGroup>

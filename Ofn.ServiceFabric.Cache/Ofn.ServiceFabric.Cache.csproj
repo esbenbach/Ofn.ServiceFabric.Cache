@@ -20,13 +20,29 @@
     <Version>0.1.0</Version>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <CodeAnalysisRuleSet />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <CodeAnalysisRuleSet />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <CodeAnalysisRuleSet />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <CodeAnalysisRuleSet />
+  </PropertyGroup>
   <Import Project="$(SolutionDir)\Shared.targets" />
   
   <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="2.0.0" />
-      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.0" />
-      <PackageReference Include="Microsoft.Extensions.Options" Version="2.0.0" />
-      <PackageReference Include="Microsoft.ServiceFabric.Services.Remoting" Version="3.4.639" />
+      <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="2.2.0" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
+      <PackageReference Include="Microsoft.Extensions.Options" Version="2.2.0" />
+      <PackageReference Include="Microsoft.ServiceFabric.Services.Remoting" Version="3.4.664" />
     </ItemGroup>
 
     <ItemGroup>
