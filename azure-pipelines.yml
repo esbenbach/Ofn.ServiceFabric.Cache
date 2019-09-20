@@ -21,25 +21,15 @@ steps:
     packageType: 'sdk'
     version: '2.2.204'
 
-- task: NuGetToolInstaller@0
+- task: DotNetCoreCLI@2
   inputs:
-    checkLatest: true
-    
-- task: NuGetCommand@2
-  inputs:
-    command: 'restore'
-    restoreSolution: '$(solution)'
+    command: restore
 
-- task: VSBuild@1
+- task: DotNetCoreCLI@2
   inputs:
-    solution: '$(solution)'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
-
-- task: VSTest@2
-  inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    command: build
+    projects: '$(solution)'
+    arguments: '--configuration $(buildConfiguration) /p:Platform=$(buildPlatform)'
 
 - task: DotNetCoreCLI@2
   inputs:
