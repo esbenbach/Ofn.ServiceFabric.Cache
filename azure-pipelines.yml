@@ -42,7 +42,7 @@ steps:
     configuration: '$(buildConfiguration)'
 
 - task: DotNetCoreCLI@2
-    inputs:
-      command: 'pack'
-      packagesToPack: 'Ofn.ServiceFabric.Cache.Abstractions\Ofn.ServiceFabric.Cache.Abstractions.csproj'
-      nobuild: true
+  inputs:
+    command: 'pack'
+    packagesToPack: 'Ofn.ServiceFabric.Cache.Abstractions\Ofn.ServiceFabric.Cache.Abstractions.csproj'
+    nobuild: true
