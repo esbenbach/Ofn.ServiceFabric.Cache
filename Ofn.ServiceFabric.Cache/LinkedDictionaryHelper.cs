@@ -7,8 +7,7 @@ using System.Threading.Tasks;
 
 namespace Ofn.ServiceFabric.Cache
 {
-    
-    class LinkedDictionaryHelper
+    public class LinkedDictionaryHelper
     {
         private readonly Func<string, Task<ConditionalValue<CachedItem>>> _getCacheItem;
         private readonly int _byteSizeOffset;
@@ -93,7 +92,7 @@ namespace Ofn.ServiceFabric.Cache
         }
     }
 
-    class LinkedDictionaryItemsChanged
+    public class LinkedDictionaryItemsChanged
     {
         public LinkedDictionaryItemsChanged(Dictionary<string, CachedItem> cachedItemsToUpdate, CacheStoreMetadata cacheStoreMetadata)
         {
