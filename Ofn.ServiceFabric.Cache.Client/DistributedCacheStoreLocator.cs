@@ -23,13 +23,13 @@
 
         private const string ListenerName = "CacheStoreServiceListener";
 
-        private Uri serviceUri;
+        private Uri? serviceUri;
 
         private readonly string endpointName;
 
         private readonly FabricClient fabricClient;
 
-        private ServicePartitionList _partitionList;
+        private ServicePartitionList? _partitionList;
 
         private readonly ConcurrentDictionary<Guid, ICacheStoreService> cacheStores;
 
@@ -87,7 +87,7 @@
 
 
 
-        private async Task<Uri> LocateCacheStoreAsync()
+        private async Task<Uri?> LocateCacheStoreAsync()
         {
             try
             {
@@ -115,7 +115,7 @@
             return null;
         }
 
-        private async Task<Uri> LocateCacheStoreServiceInApplicationAsync(Uri applicationName)
+        private async Task<Uri?> LocateCacheStoreServiceInApplicationAsync(Uri applicationName)
         {
             try
             {

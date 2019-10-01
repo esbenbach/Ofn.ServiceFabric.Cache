@@ -66,10 +66,10 @@ namespace Ofn.ServiceFabric.Cache
             return new LinkedDictionaryItemsChanged(newCachedItems, metadata);
         }
 
-        public async Task<LinkedDictionaryItemsChanged> AddLast(CacheStoreMetadata cacheStoreMetadata, string cacheItemKey, CachedItem cachedItem, byte[] newValue)
+        public async Task<LinkedDictionaryItemsChanged> AddLast(CacheStoreMetadata cacheStoreMetadata, string? cacheItemKey, CachedItem cachedItem, byte[] newValue)
         {
             var cachedDictionary = new Dictionary<string, CachedItem>();
-            var firstCacheKey = cacheItemKey;
+            string? firstCacheKey = cacheItemKey;
 
             // set current last item to be the second from last
             if (cacheStoreMetadata.LastCacheKey != null)
