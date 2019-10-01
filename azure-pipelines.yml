@@ -27,9 +27,11 @@ steps:
 
 - task: DotNetCoreCLI@2
   inputs:
-    command: build
-    projects: '$(solution)'
-    arguments: '--configuration $(buildConfiguration) /p:Platform=$(buildPlatform)'
+    solution: '$(solution)'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+    clean: true
+    restoreNugetPackages: true
 
 - task: DotNetCoreCLI@2
   inputs:
