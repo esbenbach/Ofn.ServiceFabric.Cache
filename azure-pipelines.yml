@@ -10,29 +10,30 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'x64'
-  buildConfiguration: 'Release'
-  projectPaths: '**/*.csproj'
+  projectPaths: '**/Ofn.ServiceFabric.Cache*.csproj'
 
 steps:
 - task: UseDotNet@2
+  displayName: "Install SDK 2.2.204"
   inputs:
     packageType: 'sdk'
     version: '2.2.204'
 
 - task: DotNetCoreCLI@2
+  displayName: "dotnet restore"
   inputs:
     command: restore
+    projects: '$(projectPaths)'
 
 - task: DotNetCoreCLI@2
+  displayName: "dotnet build"
   inputs:
     command: build
-    projects: '$(solution)'
-    arguments: '--configuration $(buildConfiguration) /p:Platform=$(buildPlatform)'
+    projects: '$(projectPaths)'
 
 - task: DotNetCoreCLI@2
+  displayName: "dotnet pack"
   inputs:
-    command: 'pack'
-    packagesToPack: 'Ofn.ServiceFabric.Cache.Abstractions\Ofn.ServiceFabric.Cache.Abstractions.csproj'
+    command: pack
+    packagesToPack: '$(projectPaths)'
     nobuild: true
