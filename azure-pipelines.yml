@@ -13,7 +13,7 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
-  projectPaths: '**/*.csproj'
+  projectPaths: '**/Ofn.ServiceFabrci.Cache*.csproj'
 
 steps:
 - task: UseDotNet@2
@@ -24,14 +24,13 @@ steps:
 - task: DotNetCoreCLI@2
   inputs:
     command: restore
-    projects: '$(solution)'
+    projects: '$(projectPaths)'
 
 - task: DotNetCoreCLI@2
   inputs:
     command: build
-    projects: '$(solution)'
-    arguments: '/p:Platform=$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    projects: '$(projectPaths)'
+    arguments: '/p:Platform=$(buildPlatform) --configuration $(buildConfiguration)'
 
 - task: DotNetCoreCLI@2
   inputs:
