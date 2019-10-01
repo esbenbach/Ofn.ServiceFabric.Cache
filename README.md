@@ -5,7 +5,14 @@ I have started from the great work already done by others at SoCreate https://gi
 
 
 ## What is it?
-A caching service on service fabric with an IDistributedCache .netstandard implementation using said service.
+A caching service on service fabric with an `IDistributedCache` netstandard implementation using said service.
+
+## Where to get it
+
+An initial alpha version has been published to NuGet 
+
+* Server Library: https://www.nuget.org/packages/Ofn.ServiceFabric.Cache/
+* Client Library: https://www.nuget.org/packages/Ofn.ServiceFabric.Cache.Client/
 
 ## How to use it?
 
@@ -29,7 +36,7 @@ Refer to the `CachingService` project for a more complete example.
 
 ### Using the cache store
 
-1. Create any type of .NET Core service fabric application.
+1. Create any type of .NET Core service fabric application (SF remoting is used for communication with the store)
 2. Add a reference to the Ofn.ServiceFabric.Cache.Client package
 3. Configure the .net core container in startup (or a similar location):
 
