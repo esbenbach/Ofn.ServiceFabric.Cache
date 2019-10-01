@@ -5,10 +5,10 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
-  <Import Project="$(SolutionDir)\Shared.targets" />  
+  <Import Project="../Shared.targets" />
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.ServiceFabric.Services.Remoting" Version="3.4.639" />
+    <PackageReference Include="Microsoft.ServiceFabric.Services.Remoting" Version="3.4.664" />
   </ItemGroup>
 
 </Project>
