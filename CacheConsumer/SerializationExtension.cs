@@ -9,7 +9,7 @@
         {
             if (obj == null)
             {
-                return null;
+                return new byte[] { };
             }
 
             var binaryFormatter = new BinaryFormatter();
@@ -20,11 +20,11 @@
             }
         }
 
-        public static T FromByteArray<T>(this byte[] byteArray) where T : class
+        public static T? FromByteArray<T>(this byte[] byteArray) where T : class
         {
             if (byteArray == null)
             {
-                return default(T);
+                return default;
             }
 
             var binaryFormatter = new BinaryFormatter();

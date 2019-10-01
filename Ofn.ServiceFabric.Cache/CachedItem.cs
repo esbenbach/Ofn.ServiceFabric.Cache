@@ -6,7 +6,7 @@
 
     public sealed class CachedItem
     {
-        public CachedItem(byte[] value, string beforeCacheKey = null, string afterCacheKey = null, TimeSpan? slidingExpiration = null, DateTimeOffset? absoluteExpiration = null)
+        public CachedItem(byte[] value, string? beforeCacheKey = null, string? afterCacheKey = null, TimeSpan? slidingExpiration = null, DateTimeOffset? absoluteExpiration = null)
         {
             Value = value;
             BeforeCacheKey = beforeCacheKey;
@@ -17,9 +17,9 @@
 
         public byte[] Value { get; private set; }
 
-        public string BeforeCacheKey { get; private set; }
+        public string? BeforeCacheKey { get; private set; }
 
-        public string AfterCacheKey { get; private set; }
+        public string? AfterCacheKey { get; private set; }
 
         public TimeSpan? SlidingExpiration { get; private set; }
 
@@ -63,7 +63,7 @@
             ((IStateSerializer<CachedItem>)this).Write(newValue, writer);
         }
 
-        private string GetStringValueOrNull(string value)
+        private string? GetStringValueOrNull(string value)
         {
             return value == string.Empty ? null : value;
         }

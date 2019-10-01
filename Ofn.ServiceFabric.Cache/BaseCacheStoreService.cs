@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Fabric;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Internal;
@@ -26,9 +27,9 @@
 
         private readonly Uri serviceUri;
 
-        private readonly IReliableStateManagerReplica2 _reliableStateManagerReplica;
+        private readonly IReliableStateManagerReplica2? _reliableStateManagerReplica;
 
-        private readonly ILogger<ICacheStoreService> logger;
+        private readonly ILogger<ICacheStoreService>? logger;
 
         private readonly ISystemClock _systemClock;
 
@@ -36,7 +37,7 @@
 
         private int partitionCount = 1;
 
-        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings = null, ILogger<ICacheStoreService> logger = null)
+        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings? settings = null, ILogger<ICacheStoreService>? logger = null)
             : base(context)
         {
             serviceUri = context.ServiceName;
@@ -55,7 +56,7 @@
             }
         }
 
-        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, ILogger<ICacheStoreService> logger = null)
+        public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, ILogger<ICacheStoreService>? logger = null)
             : base(context, reliableStateManagerReplica)
         {
             serviceUri = context.ServiceName;
@@ -103,7 +104,7 @@
                 }
             }
 
-            return null;
+            return new byte[] { };
         }
         
         public async Task SetCachedItemAsync(string key, byte[] value, TimeSpan? slidingExpiration, DateTimeOffset? absoluteExpiration)
@@ -273,7 +274,7 @@
             await cacheStoreMetadata.SetAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, linkedDictionaryItemsChanged.CacheStoreMetadata);
         }
 
-        private CachedItem ApplyAbsoluteExpiration(CachedItem cachedItem, DateTimeOffset? absoluteExpiration)
+        private CachedItem? ApplyAbsoluteExpiration(CachedItem cachedItem, DateTimeOffset? absoluteExpiration)
         {
             if (cachedItem != null)
             {

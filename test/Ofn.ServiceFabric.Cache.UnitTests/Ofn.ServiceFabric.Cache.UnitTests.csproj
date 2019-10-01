@@ -2,11 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
-    <LangVersion>Latest</LangVersion>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-
-  <Import Project="../../Shared.targets" />
   
   <ItemGroup>
     <PackageReference Include="AutoFixture.AutoMoq" Version="4.11.0" />

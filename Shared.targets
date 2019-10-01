@@ -18,4 +18,9 @@
     <Platforms>AnyCPU;x64</Platforms>
 		<WarningsAsErrors>NU1605;NU1607</WarningsAsErrors>
 	</PropertyGroup>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <LangVersion>8.0</LangVersion>
+  </PropertyGroup>
 </Project>

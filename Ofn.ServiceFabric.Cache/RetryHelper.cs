@@ -14,8 +14,8 @@
         public static async Task<TResult> ExecuteWithRetry<TResult>(
             IReliableStateManager stateManager,
             Func<ITransaction, CancellationToken, object, Task<TResult>> operation,
-            object state = null,
-            CancellationToken cancellationToken = default(CancellationToken),
+            object? state = null,
+            CancellationToken cancellationToken = default,
             int maxAttempts = DefaultMaxAttempts,
             TimeSpan? initialDelay = null)
         {
@@ -51,7 +51,7 @@
         public static async Task ExecuteWithRetry(
             IReliableStateManager stateManager, 
             Func<ITransaction, CancellationToken, object, Task> operation,
-            object state = null,
+            object? state = null,
             CancellationToken cancellationToken = default(CancellationToken),
             int maxAttempts = DefaultMaxAttempts,
             TimeSpan? initialDelay = null)
@@ -62,7 +62,7 @@
             if (initialDelay == null || initialDelay.Value < MinimumDelay)
                 initialDelay = InitialDelay;
 
-            Func<CancellationToken, object, Task<object>> wrapped = async (token, st) =>
+            Func<CancellationToken, object, Task<object?>> wrapped = async (token, st) =>
             {
                 using (var tran = stateManager.CreateTransaction())
                 {
@@ -85,7 +85,7 @@
 
         public static async Task<TResult> ExecuteWithRetry<TResult>(
             Func<CancellationToken, object, Task<TResult>> operation,
-            object state = null,
+            object? state = null,
             CancellationToken cancellationToken = default(CancellationToken),
             int maxAttempts = DefaultMaxAttempts,
             TimeSpan? initialDelay = null)
