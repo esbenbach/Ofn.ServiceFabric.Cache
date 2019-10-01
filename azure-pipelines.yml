@@ -24,15 +24,17 @@ steps:
 - task: DotNetCoreCLI@2
   inputs:
     command: restore
+    projects: '$(solution)'
 
 - task: DotNetCoreCLI@2
   inputs:
     command: build
     projects: '$(solution)'
-    arguments: '--configuration $(buildConfiguration) /p:Platform=$(buildPlatform)'
+    arguments: '/p:Platform=$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
 
 - task: DotNetCoreCLI@2
   inputs:
-    command: 'pack'
+    command: pack
     packagesToPack: 'Ofn.ServiceFabric.Cache.Abstractions\Ofn.ServiceFabric.Cache.Abstractions.csproj'
     nobuild: true
