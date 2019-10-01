@@ -30,7 +30,7 @@ steps:
   inputs:
     command: build
     projects: '$(projectPaths)'
-    arguments: '/p:Platform=$(buildPlatform) --configuration $(buildConfiguration)'
+    #arguments: '/p:Platform=$(buildPlatform) --configuration $(buildConfiguration)'
 
 - task: DotNetCoreCLI@2
   inputs:
