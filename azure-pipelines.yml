@@ -14,25 +14,25 @@ variables:
 
 steps:
 - task: UseDotNet@2
-  displayname: "Install SDK 2.2.204"
+  displayName: "Install SDK 2.2.204"
   inputs:
     packageType: 'sdk'
     version: '2.2.204'
 
 - task: DotNetCoreCLI@2
-  displayname: "dotnet restore"
+  displayName: "dotnet restore"
   inputs:
     command: restore
     projects: '$(projectPaths)'
 
 - task: DotNetCoreCLI@2
-  displayname: "dotnet build"
+  displayName: "dotnet build"
   inputs:
     command: build
     projects: '$(projectPaths)'
 
 - task: DotNetCoreCLI@2
-  displayname: "dotnet pack"
+  displayName: "dotnet pack"
   inputs:
     command: pack
     packagesToPack: '$(projectPaths)'
