@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="AutoFixture.AutoMoq" Version="4.18.1" />
+    <PackageVersion Include="AutoFixture.Xunit2" Version="4.18.1" />
+    <PackageVersion Include="MemoryPack" Version="1.21.4" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
+    <PackageVersion Include="Microsoft.ServiceFabric.AspNetCore.Kestrel" Version="8.4.268" />
+    <PackageVersion Include="Microsoft.ServiceFabric.Services" Version="8.4.268" />
+    <PackageVersion Include="Microsoft.ServiceFabric.Services.Remoting" Version="8.4.268" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>

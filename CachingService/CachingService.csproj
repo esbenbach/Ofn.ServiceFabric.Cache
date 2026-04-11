@@ -2,19 +2,15 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <LangVersion>latest</LangVersion>
-    <TargetFramework>netcoreapp2.2</TargetFramework>
     <IsServiceFabricServiceProject>True</IsServiceFabricServiceProject>
-    <ServerGarbageCollection>True</ServerGarbageCollection>
-    <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
-    <TargetLatestRuntimePatch>True</TargetLatestRuntimePatch>
-    <RuntimeFrameworkVersion>2.2.5</RuntimeFrameworkVersion>
-    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
+    
+  <Import Project="../Shared.targets" />
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.4.664" />
+    <PackageReference Include="Microsoft.ServiceFabric.Services" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
   <ItemGroup>

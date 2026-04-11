@@ -89,11 +89,9 @@
 
                 if (_systemClock.UtcNow < expireTime)
                 {
-                    if (cachedItem.SlidingExpiration != null)
-                    { 
-                        // Update the expiration time if sliding.
-                        await SetCachedItemAsync(key, cachedItem.Value, cachedItem.SlidingExpiration, cachedItem.AbsoluteExpiration);
-                    }
+                    // Update LRU position for every successful read.
+                    // For sliding-expiration items this also recalculates the absolute expiration.
+                    await SetCachedItemAsync(key, cachedItem.Value, cachedItem.SlidingExpiration, cachedItem.AbsoluteExpiration);
 
                     return cachedItem.Value;
                 }

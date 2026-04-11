@@ -1,80 +1,79 @@
-﻿namespace CacheConsumer.Controllers
+﻿namespace CacheConsumer.Controllers;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+
+[Route("api/[controller]")]
+[ApiController]
+public class ValuesController : ControllerBase
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading.Tasks;
-    using Microsoft.AspNetCore.Mvc;
-    using Microsoft.Extensions.Caching.Distributed;
+    private readonly IDistributedCache cache;
 
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ValuesController : ControllerBase
+    public ValuesController(IDistributedCache cache)
     {
-        private readonly IDistributedCache cache;
+        this.cache = cache;
+    }
 
-        public ValuesController(IDistributedCache cache)
+    // GET api/values
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<string>>> Get()
+    {
+        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
+        return values ?? new List<string>();
+    }
+
+    // GET api/values/5
+    [HttpGet("{id}")]
+    public async Task<ActionResult<string>> Get(int id)
+    {
+        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
+        if (values?.Count > id+1)
         {
-            this.cache = cache;
+            return values.ElementAt(id);
         }
 
-        // GET api/values
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<string>>> Get()
+        return NotFound();
+    }
+
+    // POST api/values
+    [HttpPost]
+    public async Task Post([FromBody] string value)
+    {
+        var values = (await this.cache.GetAsync("Values")).FromByteArray<List<string>>();
+        if (values == null)
         {
-            var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
-            return values ?? new List<string>();
+            values = new List<string>();
         }
 
-        // GET api/values/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<string>> Get(int id)
+        values.Add(value);
+        await this.cache.SetAsync("Values", values.ToByteArray());
+    }
+
+    // PUT api/values/5
+    [HttpPut("{id}")]
+    public async Task Put(int id, [FromBody] string value)
+    {
+        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
+        if (values?.Count() > id+1)
         {
-            var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
-            if (values?.Count > id+1)
-            {
-                return values.ElementAt(id);
-            }
-
-            return NotFound();
-        }
-
-        // POST api/values
-        [HttpPost]
-        public async Task Post([FromBody] string value)
-        {
-            var values = (await this.cache.GetAsync("Values")).FromByteArray<List<string>>();
-            if (values == null)
-            {
-                values = new List<string>();
-            }
-
-            values.Add(value);
+            values[id] = value;
             await this.cache.SetAsync("Values", values.ToByteArray());
         }
+    }
 
-        // PUT api/values/5
-        [HttpPut("{id}")]
-        public async Task Put(int id, [FromBody] string value)
+    // DELETE api/values/5
+    [HttpDelete("{id}")]
+    public async Task Delete(int id)
+    {
+        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
+        if (values?.Count() > id+1)
         {
-            var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
-            if (values?.Count() > id+1)
-            {
-                values[id] = value;
-                await this.cache.SetAsync("Values", values.ToByteArray());
-            }
-        }
-
-        // DELETE api/values/5
-        [HttpDelete("{id}")]
-        public async Task Delete(int id)
-        {
-            var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
-            if (values?.Count() > id+1)
-            {
-                values.RemoveAt(id);
-                await this.cache.SetAsync("Values", values.ToByteArray());
-            }
+            values.RemoveAt(id);
+            await this.cache.SetAsync("Values", values.ToByteArray());
         }
     }
 }

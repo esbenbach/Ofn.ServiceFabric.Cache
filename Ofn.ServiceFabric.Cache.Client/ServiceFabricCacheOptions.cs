@@ -1,16 +1,15 @@
-﻿namespace Ofn.ServiceFabric.Cache
+﻿namespace Ofn.ServiceFabric.Cache.Client;
+
+using System;
+using Microsoft.Extensions.Options;
+
+public class ServiceFabricCacheOptions : IOptions<ServiceFabricCacheOptions>
 {
-    using System;
-    using Microsoft.Extensions.Options;
+    public ServiceFabricCacheOptions Value => this;
 
-    public class ServiceFabricCacheOptions : IOptions<ServiceFabricCacheOptions>
-    {
-        public ServiceFabricCacheOptions Value => this;
+    public Uri CacheStoreServiceUri { get; set; }
 
-        public Uri CacheStoreServiceUri { get; set; }
+    public string CacheStoreEndpointName { get; set; }
 
-        public string CacheStoreEndpointName { get; set; }
-
-        public Guid CacheStoreId { get; set; }
-    }
+    public Guid CacheStoreId { get; set; }
 }
