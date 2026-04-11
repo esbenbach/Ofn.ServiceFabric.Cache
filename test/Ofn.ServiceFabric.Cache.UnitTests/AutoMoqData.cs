@@ -13,6 +13,7 @@ public class AutoMoqDataAttribute : AutoDataAttribute
     {
         var fixture = new Fixture();
         fixture.Customize(new AutoMoqCustomization { GenerateDelegates = true });
+        fixture.Customizations.Insert(0, new AutoFixture.Kernel.TypeRelay(typeof(TimeProvider), typeof(FakeTimeProvider)));
         fixture.Register(CreateStatefulServiceContext);
         return fixture;
     })

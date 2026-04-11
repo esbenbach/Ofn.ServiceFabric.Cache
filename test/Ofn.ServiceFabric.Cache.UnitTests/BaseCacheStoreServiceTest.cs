@@ -1,10 +1,9 @@
-﻿namespace Ofn.ServiceFabric.Cache.UnitTests;
+namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using System.Collections.Generic;
 using System.Fabric;
 using System.Text;
 using AutoFixture.Xunit3;
-using Microsoft.Extensions.Internal;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using Moq;
@@ -17,13 +16,13 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, cacheItemDict);
         var metadata = SetupInMemoryStores(stateManager, metadataDict);
@@ -44,14 +43,14 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
         var expireTime = currentTime.AddSeconds(30);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, cacheItemDict);
         var metadata = SetupInMemoryStores(stateManager, metadataDict);
@@ -72,14 +71,14 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
         var expireTime = currentTime.AddSeconds(1);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, metadataDict);
         SetupInMemoryStores(stateManager, cacheItemDict);
@@ -93,14 +92,14 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
         var expireTime = currentTime.AddSeconds(1);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, metadataDict);
         SetupInMemoryStores(stateManager, cacheItemDict);
@@ -115,14 +114,14 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
         var expireTime = currentTime.AddSeconds(-1);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, metadataDict);
         SetupInMemoryStores(stateManager, cacheItemDict);
@@ -137,14 +136,14 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
         var expireTime = currentTime.AddSeconds(5);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, metadataDict);
         SetupInMemoryStores(stateManager, cacheItemDict);
@@ -153,7 +152,7 @@ public class BaseCacheStoreServiceTest
         var result = await cacheStore.GetCachedItemAsync("mykey");
         Assert.Equal(cacheValue, result);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime.AddSeconds(5));
+        timeProvider.SetUtcNow(currentTime.AddSeconds(5));
 
         var resultAfter6Seconds = await cacheStore.GetCachedItemAsync("mykey");
         Assert.Null(resultAfter6Seconds);
@@ -164,13 +163,13 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, metadataDict);
         SetupInMemoryStores(stateManager, cacheItemDict);
@@ -186,19 +185,19 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, metadataDict);
         SetupInMemoryStores(stateManager, cacheItemDict);
 
         await cacheStore.SetCachedItemAsync("mykey", cacheValue, TimeSpan.FromSeconds(1), null);
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime.AddSeconds(2));
+        timeProvider.SetUtcNow(currentTime.AddSeconds(2));
         var result = await cacheStore.GetCachedItemAsync("mykey");
         Assert.Null(result);
     }
@@ -208,28 +207,28 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         SetupInMemoryStores(stateManager, cacheItemDict);
         SetupInMemoryStores(stateManager, metadataDict);
 
         await cacheStore.SetCachedItemAsync("mykey", cacheValue, TimeSpan.FromSeconds(10), null);
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime.AddSeconds(5));
+        timeProvider.SetUtcNow(currentTime.AddSeconds(5));
         var resultAfter5Seconds = await cacheStore.GetCachedItemAsync("mykey");
         Assert.Equal(cacheValue, resultAfter5Seconds);
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime.AddSeconds(8));
+        timeProvider.SetUtcNow(currentTime.AddSeconds(8));
         var resultAfter8Seconds = await cacheStore.GetCachedItemAsync("mykey");
         Assert.Equal(cacheValue, resultAfter8Seconds);
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime.AddSeconds(9));
+        timeProvider.SetUtcNow(currentTime.AddSeconds(9));
         var resultAfter9Seconds = await cacheStore.GetCachedItemAsync("mykey");
         Assert.Equal(cacheValue, resultAfter9Seconds);
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime.AddSeconds(19));
+        timeProvider.SetUtcNow(currentTime.AddSeconds(19));
         var resultAfter19Seconds = await cacheStore.GetCachedItemAsync("mykey");
         Assert.Null(resultAfter19Seconds);
     }
@@ -239,13 +238,13 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         var cachedItems = SetupInMemoryStores(stateManager, cacheItemDict);
         var metadata = SetupInMemoryStores(stateManager, metadataDict);
@@ -279,13 +278,13 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         var cachedItems = SetupInMemoryStores(stateManager, cacheItemDict);
         var metadata = SetupInMemoryStores(stateManager, metadataDict);
@@ -328,13 +327,13 @@ public class BaseCacheStoreServiceTest
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
-        [Frozen]Mock<ISystemClock> systemClock,
+        [Frozen]FakeTimeProvider timeProvider,
         [Greedy]StubCacheStoreService cacheStore)
     {
         var cacheValue = new byte[1000000];
         var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime);
+        timeProvider.SetUtcNow(currentTime);
 
         var cachedItems = SetupInMemoryStores(stateManager, cacheItemDict);
         var metadata = SetupInMemoryStores(stateManager, metadataDict);
@@ -345,7 +344,7 @@ public class BaseCacheStoreServiceTest
             await cacheStore.SetCachedItemAsync(i.ToString(), cacheValue, TimeSpan.FromSeconds(10), null);
         }
 
-        systemClock.SetupGet(m => m.UtcNow).Returns(currentTime.AddSeconds(10));
+        timeProvider.SetUtcNow(currentTime.AddSeconds(10));
         await cacheStore.RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize();
 
         Assert.Single(cachedItems);
@@ -370,8 +369,8 @@ public class BaseCacheStoreServiceTest
 
     public class StubCacheStoreService : BaseCacheStoreService
     {
-        public StubCacheStoreService(StatefulServiceContext context, IReliableStateManagerReplica2 replica, ISystemClock clock) 
-            : base(context, new CacheStoreSettings() { MaxCacheSize = 1 }, replica, clock)
+        public StubCacheStoreService(StatefulServiceContext context, IReliableStateManagerReplica2 replica, TimeProvider timeProvider) 
+            : base(context, new CacheStoreSettings() { MaxCacheSize = 1 }, replica, timeProvider)
         {
         }
 
