@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Internal;
 using Ofn.ServiceFabric.Cache.Abstractions;
 using System;
 
@@ -21,7 +20,7 @@ public static class ServiceFabricCachingServicesExtensions
 
         return services
             .AddSingleton<IDistributedCacheStoreLocator, DistributedCacheStoreLocator>()
-            .AddSingleton<ISystemClock, SystemClock>()
+            .AddSingleton<TimeProvider>(TimeProvider.System)
             .AddSingleton<IDistributedCache, ServiceFabricDistributedCache>();
     }
 }

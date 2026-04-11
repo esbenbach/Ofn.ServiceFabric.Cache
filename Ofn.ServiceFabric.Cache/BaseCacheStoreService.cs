@@ -1,7 +1,6 @@
 ﻿namespace Ofn.ServiceFabric.Cache;
 
 using System.Fabric;
-using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
@@ -24,7 +23,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     private readonly ILogger<ICacheStoreService>? logger;
 
-    private readonly ISystemClock systemClock;
+    private readonly TimeProvider timeProvider;
 
     private readonly CacheStoreSettings settings;
 
@@ -35,7 +34,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     {
         this.serviceUri = context.ServiceName;
         this.logger = logger;
-        this.systemClock = new SystemClock();
+        this.timeProvider = TimeProvider.System;
         this.settings = settings ?? new CacheStoreSettings();
 
         if (!this.StateManager.TryAddStateSerializer(new CachedItemSerializer()))
@@ -49,12 +48,12 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         }
     }
 
-    public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, ILogger<ICacheStoreService>? logger = null)
+    public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, TimeProvider timeProvider, ILogger<ICacheStoreService>? logger = null)
         : base(context, reliableStateManagerReplica)
     {
         this.serviceUri = context.ServiceName;
         this.logger = logger;
-        this.systemClock = systemClock;
+        this.timeProvider = timeProvider;
         this.settings = settings;
     }
 
@@ -80,7 +79,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             var cachedItem = cacheResult.Value;
             var expireTime = cachedItem.AbsoluteExpiration;
 
-            if (systemClock.UtcNow < expireTime)
+            if (timeProvider.GetUtcNow() < expireTime)
             {
                 // Update LRU position for every successful read.
                 // For sliding-expiration items this also recalculates the absolute expiration.
@@ -101,7 +100,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     {
         if (slidingExpiration.HasValue)
         {
-            var now = systemClock.UtcNow;
+            var now = timeProvider.GetUtcNow();
             absoluteExpiration = now.AddMilliseconds(slidingExpiration.Value.TotalMilliseconds);
         }
 
@@ -204,44 +203,45 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancelToken, state) =>
             {
-
                 var metadata = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update);
 
-                if (metadata.HasValue)
+                if (!metadata.HasValue)
                 {
-                    logger?.LogTrace("Size: {CurrentCacheSize}, MaxSize: {MaxCacheSize}", metadata.Value.Size, GetMaxSizeInBytes());
+                    return;
+                }
 
-                    if (metadata.Value.Size > GetMaxSizeInBytes())
+                logger?.LogTrace("Size: {CurrentCacheSize}, MaxSize: {MaxCacheSize}", metadata.Value.Size, GetMaxSizeInBytes());
+
+                if (metadata.Value.Size > GetMaxSizeInBytes())
+                {
+                    Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
+                    var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
+
+                    var firstItemKey = metadata.Value.FirstCacheKey;
+                    var firstCachedItem = (await getCacheItem(firstItemKey)).Value;
+
+                    // Move item to last item if cached item is not expired
+                    if (firstCachedItem.AbsoluteExpiration > timeProvider.GetUtcNow())
                     {
-                        Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
-                        var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
+                        // remove cached item
+                        var removeResult = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
+                        await ApplyChanges(tx, cacheStore, cacheStoreMetadata, removeResult);
 
-                        var firstItemKey = metadata.Value.FirstCacheKey;
-                        var firstCachedItem = (await getCacheItem(firstItemKey)).Value;
+                        // add to last
+                        var addLastResult = await linkedDictionaryHelper.AddLast(removeResult.CacheStoreMetadata, firstItemKey, firstCachedItem, firstCachedItem.Value);
+                        await ApplyChanges(tx, cacheStore, cacheStoreMetadata, addLastResult);
 
-                        // Move item to last item if cached item is not expired
-                        if (firstCachedItem.AbsoluteExpiration > systemClock.UtcNow)
-                        {
-                            // remove cached item
-                            var removeResult = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
-                            await ApplyChanges(tx, cacheStore, cacheStoreMetadata, removeResult);
+                        continueRemovingItems = addLastResult.CacheStoreMetadata.Size > GetMaxSizeInBytes();
+                    }
+                    else  // Remove 
+                    {
+                        logger?.LogTrace("Auto Removing {key}", metadata.Value.FirstCacheKey);
 
-                            // add to last
-                            var addLastResult = await linkedDictionaryHelper.AddLast(removeResult.CacheStoreMetadata, firstItemKey, firstCachedItem, firstCachedItem.Value);
-                            await ApplyChanges(tx, cacheStore, cacheStoreMetadata, addLastResult);
+                        var result = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
+                        await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
+                        await cacheStore.TryRemoveAsync(tx, metadata.Value.FirstCacheKey);
 
-                            continueRemovingItems = addLastResult.CacheStoreMetadata.Size > GetMaxSizeInBytes();
-                        }
-                        else  // Remove 
-                        {
-                            logger?.LogTrace("Auto Removing {key}", metadata.Value.FirstCacheKey);
-
-                            var result = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
-                            await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
-                            await cacheStore.TryRemoveAsync(tx, metadata.Value.FirstCacheKey);
-
-                            continueRemovingItems = result.CacheStoreMetadata.Size > GetMaxSizeInBytes();
-                        }
+                        continueRemovingItems = result.CacheStoreMetadata.Size > GetMaxSizeInBytes();
                     }
                 }
             });

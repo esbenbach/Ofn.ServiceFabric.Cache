@@ -1,7 +1,6 @@
 ﻿namespace Ofn.ServiceFabric.Cache.Client;
 
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Options;
 using Ofn.ServiceFabric.Cache.Abstractions;
 
@@ -9,15 +8,15 @@ public class ServiceFabricDistributedCache : IDistributedCache
 {
     private readonly IDistributedCacheStoreLocator _distributedCacheStoreLocator;
 
-    private readonly ISystemClock _systemClock;
+    private readonly TimeProvider _timeProvider;
 
     private readonly Guid _cacheStoreId;
 
-    public ServiceFabricDistributedCache(IOptions<ServiceFabricCacheOptions> options, IDistributedCacheStoreLocator distributedCacheStoreLocator, ISystemClock systemClock)
+    public ServiceFabricDistributedCache(IOptions<ServiceFabricCacheOptions> options, IDistributedCacheStoreLocator distributedCacheStoreLocator, TimeProvider timeProvider)
     {
         _cacheStoreId = options.Value.CacheStoreId;
         _distributedCacheStoreLocator = distributedCacheStoreLocator;
-        _systemClock = systemClock;
+        _timeProvider = timeProvider;
     }
 
     public byte[]? Get(string key)
@@ -70,7 +69,7 @@ public class ServiceFabricDistributedCache : IDistributedCache
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(value);
 
-        var absoluteExpireTime = GetAbsoluteExpiration(_systemClock.UtcNow, options);
+        var absoluteExpireTime = GetAbsoluteExpiration(_timeProvider.GetUtcNow(), options);
         if (absoluteExpireTime == null && options.SlidingExpiration == null)
         {
             options.SetSlidingExpiration(TimeSpan.FromSeconds(60));
