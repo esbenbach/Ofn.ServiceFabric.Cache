@@ -354,10 +354,10 @@ public class BaseCacheStoreServiceTest
     }
 
 
-    private Dictionary<TKey, TValue> SetupInMemoryStores<TKey, TValue>(Mock<IReliableStateManagerReplica2> stateManager, Mock<IReliableDictionary<TKey, TValue>> reliableDict) where TKey : IComparable<TKey>, IEquatable<TKey>
+    private static Dictionary<TKey, TValue> SetupInMemoryStores<TKey, TValue>(Mock<IReliableStateManagerReplica2> stateManager, Mock<IReliableDictionary<TKey, TValue>> reliableDict) where TKey : IComparable<TKey>, IEquatable<TKey>
     {
         var inMemoryDict = new Dictionary<TKey, TValue>();
-        Func<TKey, ConditionalValue<TValue>> getItem = (key) => inMemoryDict.ContainsKey(key) ? new ConditionalValue<TValue>(true, inMemoryDict[key]) : new ConditionalValue<TValue>(false, default(TValue));
+        ConditionalValue<TValue> getItem(TKey key) => inMemoryDict.TryGetValue(key, out TValue? value) ? new ConditionalValue<TValue>(true, value) : new ConditionalValue<TValue>(false, default);
 
         stateManager.Setup(m => m.GetOrAddAsync<IReliableDictionary<TKey, TValue>>(It.IsAny<string>())).Returns(Task.FromResult(reliableDict.Object));
         reliableDict.Setup(m => m.TryGetValueAsync(It.IsAny<ITransaction>(), It.IsAny<TKey>())).Returns((ITransaction t, TKey key) => Task.FromResult(getItem(key)));

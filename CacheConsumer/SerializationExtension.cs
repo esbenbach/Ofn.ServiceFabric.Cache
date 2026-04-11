@@ -18,7 +18,7 @@ public static class SerializationExtension
     {
         if (byteArray == null)
         {
-            return default(T);
+            return default;
         }
 
         return MemoryPackSerializer.Deserialize<T>(byteArray);
