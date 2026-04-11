@@ -2,7 +2,7 @@
 
 using AutoFixture;
 using AutoFixture.AutoMoq;
-using AutoFixture.Xunit2;
+using AutoFixture.Xunit3;
 using Moq;
 using System.Fabric;
 using System.Numerics;

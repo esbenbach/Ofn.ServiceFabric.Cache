@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using System.Fabric;
 using System.Text;
-using AutoFixture.Xunit2;
+using AutoFixture.Xunit3;
 using Microsoft.Extensions.Internal;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;

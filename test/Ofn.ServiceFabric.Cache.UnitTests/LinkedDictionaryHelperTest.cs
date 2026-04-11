@@ -1,6 +1,6 @@
 namespace Ofn.ServiceFabric.Cache.UnitTests;
 
-using AutoFixture.Xunit2;
+using AutoFixture.Xunit3;
 using Microsoft.Extensions.Internal;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
@@ -16,7 +16,7 @@ using Xunit;
 public class LinkedDictionaryHelperTest
 {
     [Theory, AutoMoqData]
-    async void AddLast_AddNewItemToEndOfList_LinkOldLastItemToNewLastItem(
+    async Task AddLast_AddNewItemToEndOfList_LinkOldLastItemToNewLastItem(
         [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
         CacheStoreMetadata cacheStoreMetadata,
         ConditionalValue<CachedItem> cachedItem,
@@ -51,7 +51,7 @@ public class LinkedDictionaryHelperTest
     }
 
     [Theory, AutoMoqData]
-    async void AddLast_AddNewItemToEndOfEmptyList_ListContainsOnlyNewItem(
+    async Task AddLast_AddNewItemToEndOfEmptyList_ListContainsOnlyNewItem(
         [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
         ConditionalValue<CachedItem> cachedItem,
         CachedItem newCachedItem,
@@ -80,7 +80,7 @@ public class LinkedDictionaryHelperTest
     }
 
     [Theory, AutoMoqData]
-    async void Remove_OnlyItemInLinkedDictionary_SetCacheItemNotCalled(
+    async Task Remove_OnlyItemInLinkedDictionary_SetCacheItemNotCalled(
         CacheStoreMetadata cacheStoreMetadata,
         LinkedDictionaryHelper linkedDictionaryHelper)
     {
@@ -97,7 +97,7 @@ public class LinkedDictionaryHelperTest
     }
 
     [Theory, AutoMoqData]
-    async void Remove_FirstItemInLinkedDictionary_SetSecondItemToBeFirst(
+    async Task Remove_FirstItemInLinkedDictionary_SetSecondItemToBeFirst(
         [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
         CacheStoreMetadata cacheStoreMetadata,
         LinkedDictionaryHelper linkedDictionaryHelper)
@@ -129,7 +129,7 @@ public class LinkedDictionaryHelperTest
     }
 
     [Theory, AutoMoqData]
-    async void Remove_LastItemInLinkedDictionary_SetSecondItemFromLastToBeLast(
+    async Task Remove_LastItemInLinkedDictionary_SetSecondItemFromLastToBeLast(
         [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
         CacheStoreMetadata cacheStoreMetadata,
         LinkedDictionaryHelper linkedDictionaryHelper)
@@ -161,7 +161,7 @@ public class LinkedDictionaryHelperTest
     }
 
     [Theory, AutoMoqData]
-    async void Remove_MiddleItemInLinkedDictionary_ItemBeforeAndAfterNeedTobeLinked(
+    async Task Remove_MiddleItemInLinkedDictionary_ItemBeforeAndAfterNeedTobeLinked(
         [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
         CacheStoreMetadata cacheStoreMetadata,
         LinkedDictionaryHelper linkedDictionaryHelper)
