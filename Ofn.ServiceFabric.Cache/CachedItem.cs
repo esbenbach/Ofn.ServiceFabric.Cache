@@ -6,7 +6,7 @@ using System.IO;
 
 public sealed class CachedItem
 {
-    public CachedItem(byte[] value, string beforeCacheKey = null, string afterCacheKey = null, TimeSpan? slidingExpiration = null, DateTimeOffset? absoluteExpiration = null)
+    public CachedItem(byte[] value, string? beforeCacheKey = null, string? afterCacheKey = null, TimeSpan? slidingExpiration = null, DateTimeOffset? absoluteExpiration = null)
     {
         Value = value;
         BeforeCacheKey = beforeCacheKey;
@@ -17,9 +17,9 @@ public sealed class CachedItem
 
     public byte[] Value { get; private set; }
 
-    public string BeforeCacheKey { get; private set; }
+    public string? BeforeCacheKey { get; private set; }
 
-    public string AfterCacheKey { get; private set; }
+    public string? AfterCacheKey { get; private set; }
 
     public TimeSpan? SlidingExpiration { get; private set; }
 
@@ -63,37 +63,37 @@ class CachedItemSerializer : IStateSerializer<CachedItem>
         ((IStateSerializer<CachedItem>)this).Write(newValue, writer);
     }
 
-    private string GetStringValueOrNull(string value)
+    private static string? GetStringValueOrNull(string? value)
     {
         return value == string.Empty ? null : value;
     }
 
-    private TimeSpan? GetTimeSpanFromTicks(long ticks)
+    private static TimeSpan? GetTimeSpanFromTicks(long ticks)
     {
         if (ticks == 0) return null;
 
         return TimeSpan.FromTicks(ticks);
     }
 
-    private long GetTicksFromTimeSpan(TimeSpan? timeSpan)
+    private static long GetTicksFromTimeSpan(TimeSpan? timeSpan)
     {
         if (!timeSpan.HasValue) return 0;
 
         return timeSpan.Value.Ticks;
     }
 
-    private DateTimeOffset? GetDateTimeOffsetFromDateData(long dateDataTicks, long offsetTicks)
+    private static DateTimeOffset? GetDateTimeOffsetFromDateData(long dateDataTicks, long offsetTicks)
     {
         return new DateTimeOffset(DateTime.FromBinary(dateDataTicks), new TimeSpan(offsetTicks));
     }
 
-    private long GetLongDateTimeFromDateTimeOffset(DateTimeOffset? dateTimeOffset)
+    private static long GetLongDateTimeFromDateTimeOffset(DateTimeOffset? dateTimeOffset)
     {
         if (!dateTimeOffset.HasValue) return 0;
         return dateTimeOffset.Value.Ticks;
     }
 
-    private long GetShortOffsetFromDateTimeOffset(DateTimeOffset? dateTimeOffset)
+    private static long GetShortOffsetFromDateTimeOffset(DateTimeOffset? dateTimeOffset)
     {
         if (!dateTimeOffset.HasValue) return 0;
         return dateTimeOffset.Value.Offset.Ticks;

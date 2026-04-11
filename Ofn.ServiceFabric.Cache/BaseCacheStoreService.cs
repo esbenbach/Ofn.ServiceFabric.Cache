@@ -22,42 +22,39 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     private readonly Uri serviceUri;
 
-    private readonly IReliableStateManagerReplica2 _reliableStateManagerReplica;
+    private readonly ILogger<ICacheStoreService>? logger;
 
-    private readonly ILogger<ICacheStoreService> logger;
-
-    private readonly ISystemClock _systemClock;
+    private readonly ISystemClock systemClock;
 
     private readonly CacheStoreSettings settings;
 
     private int partitionCount = 1;
 
-    public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings = null, ILogger<ICacheStoreService> logger = null)
+    public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings? settings = null, ILogger<ICacheStoreService>? logger = null)
         : base(context)
     {
-        serviceUri = context.ServiceName;
+        this.serviceUri = context.ServiceName;
         this.logger = logger;
-        _systemClock = new SystemClock();
+        this.systemClock = new SystemClock();
         this.settings = settings ?? new CacheStoreSettings();
 
-        if (!StateManager.TryAddStateSerializer(new CachedItemSerializer()))
+        if (!this.StateManager.TryAddStateSerializer(new CachedItemSerializer()))
         {
             throw new InvalidOperationException("Failed to set CachedItem custom serializer");
         }
 
-        if (!StateManager.TryAddStateSerializer(new CacheStoreMetadataSerializer()))
+        if (!this.StateManager.TryAddStateSerializer(new CacheStoreMetadataSerializer()))
         {
             throw new InvalidOperationException("Failed to set CacheStoreMetadata custom serializer");
         }
     }
 
-    public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, ILogger<ICacheStoreService> logger = null)
+    public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, ISystemClock systemClock, ILogger<ICacheStoreService>? logger = null)
         : base(context, reliableStateManagerReplica)
     {
-        serviceUri = context.ServiceName;
-        _reliableStateManagerReplica = reliableStateManagerReplica;
+        this.serviceUri = context.ServiceName;
         this.logger = logger;
-        _systemClock = systemClock;
+        this.systemClock = systemClock;
         this.settings = settings;
     }
 
@@ -83,7 +80,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             var cachedItem = cacheResult.Value;
             var expireTime = cachedItem.AbsoluteExpiration;
 
-            if (_systemClock.UtcNow < expireTime)
+            if (systemClock.UtcNow < expireTime)
             {
                 // Update LRU position for every successful read.
                 // For sliding-expiration items this also recalculates the absolute expiration.
@@ -104,7 +101,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     {
         if (slidingExpiration.HasValue)
         {
-            var now = _systemClock.UtcNow;
+            var now = systemClock.UtcNow;
             absoluteExpiration = now.AddMilliseconds(slidingExpiration.Value.TotalMilliseconds);
         }
 
@@ -223,7 +220,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                         var firstCachedItem = (await getCacheItem(firstItemKey)).Value;
 
                         // Move item to last item if cached item is not expired
-                        if (firstCachedItem.AbsoluteExpiration > _systemClock.UtcNow)
+                        if (firstCachedItem.AbsoluteExpiration > systemClock.UtcNow)
                         {
                             // remove cached item
                             var removeResult = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
