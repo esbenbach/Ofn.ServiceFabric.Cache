@@ -6,7 +6,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
-  <Import Project="../Shared.targets" />
+
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" />

@@ -5,7 +5,7 @@
     <IsServiceFabricServiceProject>True</IsServiceFabricServiceProject>
   </PropertyGroup>
     
-  <Import Project="../Shared.targets" />
+
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ServiceFabric.Services" />
