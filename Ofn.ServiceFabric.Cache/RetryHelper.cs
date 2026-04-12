@@ -17,7 +17,9 @@ static class RetryHelper
         object? state = null,
         CancellationToken cancellationToken = default,
         int maxAttempts = DefaultMaxAttempts,
-        TimeSpan? initialDelay = null)
+        TimeSpan? initialDelay = null,
+        Action<int>? onRetry = null,
+        Action? onFinalFailure = null)
     {
         if (stateManager == null) throw new ArgumentNullException(nameof(stateManager));
         if (operation == null) throw new ArgumentNullException(nameof(operation));
@@ -44,7 +46,7 @@ static class RetryHelper
             return result;
         };
 
-        var outerResult = await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay);
+        var outerResult = await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay, onRetry, onFinalFailure);
         return outerResult!;
     }
 
@@ -54,7 +56,9 @@ static class RetryHelper
         object? state = null,
         CancellationToken cancellationToken = default,
         int maxAttempts = DefaultMaxAttempts,
-        TimeSpan? initialDelay = null)
+        TimeSpan? initialDelay = null,
+        Action<int>? onRetry = null,
+        Action? onFinalFailure = null)
     {
         if (stateManager == null) throw new ArgumentNullException(nameof(stateManager));
         if (operation == null) throw new ArgumentNullException(nameof(operation));
@@ -80,7 +84,7 @@ static class RetryHelper
             return null;
         };
 
-        await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay);
+        await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay, onRetry, onFinalFailure);
     }
 
     public static async Task<TResult?> ExecuteWithRetry<TResult>(
@@ -88,7 +92,9 @@ static class RetryHelper
         object? state = null,
         CancellationToken cancellationToken = default,
         int maxAttempts = DefaultMaxAttempts,
-        TimeSpan? initialDelay = null)
+        TimeSpan? initialDelay = null,
+        Action<int>? onRetry = null,
+        Action? onFinalFailure = null)
     {
         if (operation == null) throw new ArgumentNullException(nameof(operation));
         if (maxAttempts <= 0) maxAttempts = DefaultMaxAttempts;
@@ -107,8 +113,11 @@ static class RetryHelper
             {
                 if (attempts >= maxAttempts - 1)
                 {
+                    onFinalFailure?.Invoke();
                     throw;
                 }
+
+                onRetry?.Invoke(attempts);
             }
 
             //exponential back-off
