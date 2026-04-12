@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-[assembly: InternalsVisibleTo("SoCreate.Extensions.Caching.Tests")]
+[assembly: InternalsVisibleTo("Ofn.ServiceFabric.Cache.UnitTests")]
 
 namespace Ofn.ServiceFabric.Cache;
 

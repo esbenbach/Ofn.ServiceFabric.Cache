@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.Fabric;
 using System.Text;
 using AutoFixture.Xunit3;
+using Microsoft.Extensions.Logging;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using Moq;
+using Ofn.ServiceFabric.Cache.Abstractions;
 using Xunit;
 
 public class BaseCacheStoreServiceTest
@@ -353,6 +355,42 @@ public class BaseCacheStoreServiceTest
     }
 
 
+    [Theory, AutoMoqData]
+    public async Task RunAsync_PruningThrowsTransientException_ExceptionIsLoggedAndLoopContinues(
+        [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
+        [Frozen]Mock<ILogger<ICacheStoreService>> logger,
+        [Greedy]StubCacheStoreService cacheStore)
+    {
+        stateManager
+            .Setup(m => m.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(It.IsAny<string>()))
+            .ThrowsAsync(new InvalidOperationException("transient error"));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cacheStore.RunAsyncPublic(cts.Token));
+
+        logger.Verify(
+            l => l.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<InvalidOperationException>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    [Theory, AutoMoqData]
+    public async Task RunAsync_CancellationRequestedImmediately_TerminatesWithoutError(
+        [Greedy]StubCacheStoreService cacheStore)
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var ex = await Record.ExceptionAsync(() => cacheStore.RunAsyncPublic(cts.Token));
+
+        Assert.True(ex is null || ex is OperationCanceledException);
+    }
+
     private static Dictionary<TKey, TValue> SetupInMemoryStores<TKey, TValue>(Mock<IReliableStateManagerReplica2> stateManager, Mock<IReliableDictionary<TKey, TValue>> reliableDict) where TKey : IComparable<TKey>, IEquatable<TKey>
     {
         var inMemoryDict = new Dictionary<TKey, TValue>();
@@ -369,10 +407,13 @@ public class BaseCacheStoreServiceTest
 
     public class StubCacheStoreService : BaseCacheStoreService
     {
-        public StubCacheStoreService(StatefulServiceContext context, IReliableStateManagerReplica2 replica, TimeProvider timeProvider) 
-            : base(context, new CacheStoreSettings() { MaxCacheSize = 1 }, replica, timeProvider)
+        public StubCacheStoreService(StatefulServiceContext context, IReliableStateManagerReplica2 replica, TimeProvider timeProvider, ILogger<ICacheStoreService>? logger = null)
+            : base(context, new CacheStoreSettings() { MaxCacheSize = 1, CachePruningInterval = 0 }, replica, timeProvider, logger)
         {
         }
+
+        public Task RunAsyncPublic(CancellationToken cancellationToken) =>
+            base.RunAsync(cancellationToken);
 
         public async Task RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize()
         {

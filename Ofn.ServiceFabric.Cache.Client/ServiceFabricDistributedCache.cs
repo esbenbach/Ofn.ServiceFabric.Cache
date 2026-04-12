@@ -72,7 +72,7 @@ public class ServiceFabricDistributedCache : IDistributedCache
         var absoluteExpireTime = GetAbsoluteExpiration(_timeProvider.GetUtcNow(), options);
         if (absoluteExpireTime == null && options.SlidingExpiration == null)
         {
-            options.SetSlidingExpiration(TimeSpan.FromSeconds(60));
+            options.SlidingExpiration = TimeSpan.FromSeconds(60);
         }
 
         ValidateOptions(options.SlidingExpiration, absoluteExpireTime);
