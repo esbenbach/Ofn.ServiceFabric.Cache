@@ -7,6 +7,7 @@ using System.Fabric;
 using System.Fabric.Query;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.ServiceFabric.Services.Client;
 using Moq;
@@ -110,17 +111,17 @@ public class DistributedCacheStoreLocatorMetricsTest
             Func<Task<Uri?>> locateCacheStore,
             Func<Uri, Task<ServicePartitionList>>? fetchPartitions = null,
             Func<Uri, ServicePartitionKey, ICacheStoreService>? createProxy = null)
-            : base(options)
+            : base(options, NullLogger<DistributedCacheStoreLocator>.Instance)
         {
             _locateCacheStore = locateCacheStore;
             _fetchPartitions = fetchPartitions;
             _createProxy = createProxy;
         }
 
-        protected override Task<Uri?> LocateCacheStoreAsync() =>
+        protected override Task<Uri?> LocateCacheStoreAsync(CancellationToken cancellationToken = default) =>
             _locateCacheStore();
 
-        protected override Task<ServicePartitionList> FetchPartitionListAsync(Uri uri) =>
+        protected override Task<ServicePartitionList> FetchPartitionListAsync(Uri uri, CancellationToken cancellationToken = default) =>
             _fetchPartitions != null
                 ? _fetchPartitions(uri)
                 : Task.FromResult(CreatePartitionList([(Guid.NewGuid(), long.MinValue, long.MaxValue)]));

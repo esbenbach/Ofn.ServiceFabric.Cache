@@ -36,7 +36,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var expectedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(expectedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(expectedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         await cache.GetAsync("mykey", TestContext.Current.CancellationToken);
@@ -51,7 +51,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions(),
@@ -72,7 +72,7 @@ public class ServiceFabricDistributedCacheTest
         var proxy = new Mock<ICacheStoreService>();
         var slidingExpiry = TimeSpan.FromMinutes(3);
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions
@@ -97,7 +97,7 @@ public class ServiceFabricDistributedCacheTest
 
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions
@@ -119,7 +119,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         await cache.RemoveAsync("mykey", TestContext.Current.CancellationToken);
@@ -155,7 +155,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider, defaultSlidingExpiration: TimeSpan.FromMinutes(10));
         await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions(),
@@ -187,7 +187,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         await cache.RefreshAsync("mykey", TestContext.Current.CancellationToken);
@@ -203,7 +203,7 @@ public class ServiceFabricDistributedCacheTest
         var expected = new byte[] { 10, 20, 30 };
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
         proxy.Setup(p => p.GetCachedItemAsync(formattedKey)).ReturnsAsync(expected);
 
         var cache = CreateCache(locator.Object, timeProvider);
@@ -220,7 +220,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         cache.Remove("mykey");
@@ -252,7 +252,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         cache.Set("mykey", new byte[] { 1 }, new DistributedCacheEntryOptions
@@ -260,7 +260,7 @@ public class ServiceFabricDistributedCacheTest
             SlidingExpiration = TimeSpan.FromMinutes(1)
         });
 
-        locator.Verify(l => l.GetCacheStoreProxy(formattedKey), Times.Once);
+        locator.Verify(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Theory, AutoMoqData]
@@ -270,12 +270,12 @@ public class ServiceFabricDistributedCacheTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
         cache.Refresh("mykey");
 
-        locator.Verify(l => l.GetCacheStoreProxy(formattedKey), Times.Once);
+        locator.Verify(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Theory, AutoMoqData]

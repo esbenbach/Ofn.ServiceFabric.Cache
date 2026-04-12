@@ -87,7 +87,7 @@ public class CacheClientMetricsTest
         var formattedKey = $"{TestCacheStoreId}-mykey";
         var returnValue = new byte[] { 1, 2, 3 };
 
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
         proxy.Setup(p => p.GetCachedItemAsync(formattedKey)).ReturnsAsync(returnValue);
 
         var cache = CreateCache(locator.Object, timeProvider);
@@ -125,7 +125,7 @@ public class CacheClientMetricsTest
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
 
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
         proxy.Setup(p => p.GetCachedItemAsync(formattedKey)).ReturnsAsync((byte[]?)null);
 
         var cache = CreateCache(locator.Object, timeProvider);
@@ -156,7 +156,7 @@ public class CacheClientMetricsTest
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-mykey";
 
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
         proxy.Setup(p => p.GetCachedItemAsync(formattedKey)).ThrowsAsync(new InvalidOperationException("store error"));
 
         var cache = CreateCache(locator.Object, timeProvider);
@@ -188,7 +188,7 @@ public class CacheClientMetricsTest
         var payload = new byte[] { 10, 20, 30, 40, 50 }; // 5 bytes
         var formattedKey = $"{TestCacheStoreId}-setkey";
 
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
 
@@ -225,7 +225,7 @@ public class CacheClientMetricsTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-defkey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         // DefaultSlidingExpiration = 60s is set by CreateCache's default
         var cache = CreateCache(locator.Object, timeProvider);
@@ -257,7 +257,7 @@ public class CacheClientMetricsTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-expkey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
 
@@ -286,7 +286,7 @@ public class CacheClientMetricsTest
     {
         var proxy = new Mock<ICacheStoreService>();
         var formattedKey = $"{TestCacheStoreId}-rmkey";
-        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey, It.IsAny<CancellationToken>())).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
 

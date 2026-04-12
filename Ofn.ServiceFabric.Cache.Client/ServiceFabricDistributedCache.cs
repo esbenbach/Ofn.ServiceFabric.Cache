@@ -45,7 +45,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         var status = "success";
         try
         {
-            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
+            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key, token).ConfigureAwait(false);
             var result = await proxy.GetCachedItemAsync(key).ConfigureAwait(false);
             CacheClientMetrics.Gets.Add(1, new TagList { { "result", result != null ? "hit" : "miss" }, { "cache_store_id", _cacheStoreId.ToString() } });
             return result;
@@ -100,7 +100,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         var status = "success";
         try
         {
-            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
+            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key, token).ConfigureAwait(false);
             await proxy.RemoveCachedItemAsync(key).ConfigureAwait(false);
         }
         catch
@@ -154,7 +154,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         {
             CacheClientMetrics.SetValueSize.Record(value.Length, StoreIdTag);
             key = FormatCacheKey(key);
-            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
+            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key, token).ConfigureAwait(false);
             await proxy.SetCachedItemAsync(key, value, options.SlidingExpiration, absoluteExpireTime).ConfigureAwait(false);
         }
         catch

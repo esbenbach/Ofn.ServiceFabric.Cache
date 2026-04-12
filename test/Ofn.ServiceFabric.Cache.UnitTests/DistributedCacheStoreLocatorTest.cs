@@ -3,6 +3,7 @@ namespace Ofn.ServiceFabric.Cache.UnitTests;
 using System.Fabric;
 using System.Fabric.Query;
 using System.Reflection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.ServiceFabric.Services.Client;
 using Moq;
@@ -135,13 +136,13 @@ public class DistributedCacheStoreLocatorTest
             IOptions<ServiceFabricCacheOptions> options,
             Func<Uri, Task<ServicePartitionList>> fetchPartitions,
             Func<Uri, ServicePartitionKey, ICacheStoreService>? createProxy = null)
-            : base(options)
+            : base(options, NullLogger<DistributedCacheStoreLocator>.Instance)
         {
             _fetchPartitions = fetchPartitions;
             _createProxy = createProxy ?? ((_, _) => Mock.Of<ICacheStoreService>());
         }
 
-        protected override Task<ServicePartitionList> FetchPartitionListAsync(Uri uri)
+        protected override Task<ServicePartitionList> FetchPartitionListAsync(Uri uri, CancellationToken cancellationToken = default)
             => _fetchPartitions(uri);
 
         protected override ICacheStoreService CreateCacheStoreProxy(Uri uri, ServicePartitionKey partitionKey, string endpoint)
