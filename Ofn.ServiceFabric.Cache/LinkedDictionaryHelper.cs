@@ -108,14 +108,6 @@ public class LinkedDictionaryHelper
     }
 }
 
-public class LinkedDictionaryItemsChanged
-{
-    public LinkedDictionaryItemsChanged(Dictionary<string, CachedItem> cachedItemsToUpdate, CacheStoreMetadata cacheStoreMetadata)
-    {
-        CachedItemsToUpdate = cachedItemsToUpdate;
-        CacheStoreMetadata = cacheStoreMetadata;
-    }
-
-    public IReadOnlyDictionary<string, CachedItem> CachedItemsToUpdate { get; private set; }
-    public CacheStoreMetadata CacheStoreMetadata { get; private set; }
-}
+public sealed record LinkedDictionaryItemsChanged(
+    IReadOnlyDictionary<string, CachedItem> CachedItemsToUpdate,
+    CacheStoreMetadata CacheStoreMetadata);

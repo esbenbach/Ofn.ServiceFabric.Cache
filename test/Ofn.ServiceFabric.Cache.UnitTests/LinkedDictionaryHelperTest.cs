@@ -193,6 +193,18 @@ public class LinkedDictionaryHelperTest
         Assert.Contains(lastKey, ex.Message);
     }
 
+    [Fact]
+    public void LinkedDictionaryItemsChanged_SameValues_AreStructurallyEqual()
+    {
+        var dict = new Dictionary<string, CachedItem>();
+        var metadata = new CacheStoreMetadata(0, null, null);
+
+        var a = new LinkedDictionaryItemsChanged(dict, metadata);
+        var b = new LinkedDictionaryItemsChanged(dict, metadata);
+
+        Assert.Equal(a, b);  // record structural equality
+    }
+
     [Theory, AutoMoqData]
     async Task Remove_MiddleItemInLinkedDictionary_ItemBeforeAndAfterNeedTobeLinked(
         [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
