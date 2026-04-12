@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 static class RetryHelper
 {
     private const int DefaultMaxAttempts = 10;
+    private const int MaxBackOffFactor = 1024;
     private static readonly TimeSpan InitialDelay = TimeSpan.FromMilliseconds(200);
     private static readonly TimeSpan MinimumDelay = TimeSpan.FromMilliseconds(200);
 
@@ -21,13 +22,13 @@ static class RetryHelper
         Action<int>? onRetry = null,
         Action? onFinalFailure = null)
     {
-        if (stateManager == null) throw new ArgumentNullException(nameof(stateManager));
-        if (operation == null) throw new ArgumentNullException(nameof(operation));
+        ArgumentNullException.ThrowIfNull(stateManager);
+        ArgumentNullException.ThrowIfNull(operation);
         if (maxAttempts <= 0) maxAttempts = DefaultMaxAttempts;
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
 
-        Func<CancellationToken, object?, Task<TResult>> wrapped = async (token, st) =>
+        Func<CancellationToken, object?, Task<TResult>> wrapped = async (_, _) =>
         {
             TResult result;
             using (var tran = stateManager.CreateTransaction())
@@ -60,13 +61,13 @@ static class RetryHelper
         Action<int>? onRetry = null,
         Action? onFinalFailure = null)
     {
-        if (stateManager == null) throw new ArgumentNullException(nameof(stateManager));
-        if (operation == null) throw new ArgumentNullException(nameof(operation));
+        ArgumentNullException.ThrowIfNull(stateManager);
+        ArgumentNullException.ThrowIfNull(operation);
         if (maxAttempts <= 0) maxAttempts = DefaultMaxAttempts;
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
 
-        Func<CancellationToken, object?, Task<object?>> wrapped = async (token, st) =>
+        Func<CancellationToken, object?, Task<object?>> wrapped = async (_, _) =>
         {
             using (var tran = stateManager.CreateTransaction())
             {
@@ -96,7 +97,7 @@ static class RetryHelper
         Action<int>? onRetry = null,
         Action? onFinalFailure = null)
     {
-        if (operation == null) throw new ArgumentNullException(nameof(operation));
+        ArgumentNullException.ThrowIfNull(operation);
         if (maxAttempts <= 0) maxAttempts = DefaultMaxAttempts;
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
@@ -121,7 +122,7 @@ static class RetryHelper
             }
 
             //exponential back-off
-            int factor = (int)Math.Pow(2, attempts) + 1;
+            int factor = (int)Math.Min(Math.Pow(2, attempts), MaxBackOffFactor) + 1;
             int delay = Random.Shared.Next((int)(initialDelay.Value.TotalMilliseconds * 0.5D), (int)(initialDelay.Value.TotalMilliseconds * 1.5D));
             await Task.Delay(factor * delay, cancellationToken);
         }

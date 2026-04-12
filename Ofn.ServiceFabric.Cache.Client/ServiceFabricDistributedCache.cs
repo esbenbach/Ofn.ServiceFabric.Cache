@@ -5,7 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Ofn.ServiceFabric.Cache.Abstractions;
 
-public class ServiceFabricDistributedCache : IDistributedCache
+public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
 {
     private readonly IDistributedCacheStoreLocator _distributedCacheStoreLocator;
 
@@ -173,16 +173,23 @@ public class ServiceFabricDistributedCache : IDistributedCache
 
     private static DateTimeOffset? GetAbsoluteExpiration(DateTimeOffset utcNow, DistributedCacheEntryOptions options)
     {
-        var expireTime = new DateTimeOffset?();
         if (options.AbsoluteExpirationRelativeToNow.HasValue)
-            expireTime = new DateTimeOffset?(utcNow.Add(options.AbsoluteExpirationRelativeToNow.Value));
-        else if (options.AbsoluteExpiration.HasValue)
+            return utcNow.Add(options.AbsoluteExpirationRelativeToNow.Value);
+
+        if (options.AbsoluteExpiration.HasValue)
         {
             if (options.AbsoluteExpiration.Value <= utcNow)
                 throw new InvalidOperationException("The absolute expiration value must be in the future.");
-            expireTime = new DateTimeOffset?(options.AbsoluteExpiration.Value);
+            return options.AbsoluteExpiration.Value;
         }
-        return expireTime;
+
+        return null;
+    }
+
+    public void Dispose()
+    {
+        if (_distributedCacheStoreLocator is IDisposable disposable)
+            disposable.Dispose();
     }
 
     private static void ValidateOptions(TimeSpan? slidingExpiration, DateTimeOffset? absoluteExpiration)

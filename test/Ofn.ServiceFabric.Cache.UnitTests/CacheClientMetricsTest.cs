@@ -6,6 +6,7 @@ using System.Diagnostics.Metrics;
 using System.Threading.Tasks;
 using AutoFixture.Xunit3;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using Moq;
 using Ofn.ServiceFabric.Cache.Abstractions;
 using Ofn.ServiceFabric.Cache.Client;
@@ -30,13 +31,13 @@ public class CacheClientMetricsTest
         TimeSpan? defaultSlidingExpiration = null,
         bool useDefaultSlidingExpiration = true)
     {
-        var options = new ServiceFabricCacheOptions
+        var options = Options.Create(new ServiceFabricCacheOptions
         {
             CacheStoreId = cacheStoreId ?? TestCacheStoreId,
             DefaultSlidingExpiration = useDefaultSlidingExpiration
                 ? (defaultSlidingExpiration ?? TimeSpan.FromSeconds(60))
                 : null
-        };
+        });
         return new ServiceFabricDistributedCache(options, locator, timeProvider);
     }
 

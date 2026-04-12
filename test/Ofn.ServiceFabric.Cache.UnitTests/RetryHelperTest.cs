@@ -123,6 +123,42 @@ public class RetryHelperTest
     }
 
     [Fact]
+    public async Task ExecuteWithRetry_NonTimeoutException_PropagatesImmediatelyWithoutRetry()
+    {
+        int callCount = 0;
+        Func<CancellationToken, object?, Task<int>> operation = (_, _) =>
+        {
+            callCount++;
+            throw new InvalidOperationException("boom");
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            RetryHelper.ExecuteWithRetry(operation, maxAttempts: 5, initialDelay: TimeSpan.FromMilliseconds(1),
+                cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(1, callCount);
+    }
+
+    [Fact]
+    public async Task ExecuteWithRetry_StateParameter_IsForwardedToOperation()
+    {
+        var expectedState = new object();
+        object? capturedState = null;
+
+        Func<CancellationToken, object?, Task<int>> operation = (_, st) =>
+        {
+            capturedState = st;
+            return Task.FromResult(0);
+        };
+
+        await RetryHelper.ExecuteWithRetry(operation, state: expectedState,
+            initialDelay: TimeSpan.FromMilliseconds(1),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Same(expectedState, capturedState);
+    }
+
+    [Fact]
     public async Task ExecuteWithRetry_WithStateManager_VoidOverload_CommitsOnSuccess()
     {
         var transaction = new Mock<ITransaction>();

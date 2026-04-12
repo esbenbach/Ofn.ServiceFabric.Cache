@@ -2,6 +2,7 @@ namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using AutoFixture.Xunit3;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using Moq;
 using Ofn.ServiceFabric.Cache.Abstractions;
 using Ofn.ServiceFabric.Cache.Client;
@@ -18,13 +19,13 @@ public class ServiceFabricDistributedCacheTest
         TimeSpan? defaultSlidingExpiration = null,
         bool useDefaultSlidingExpiration = true)
     {
-        var options = new ServiceFabricCacheOptions
+        var options = Options.Create(new ServiceFabricCacheOptions
         {
             CacheStoreId = cacheStoreId ?? TestCacheStoreId,
             DefaultSlidingExpiration = useDefaultSlidingExpiration
                 ? (defaultSlidingExpiration ?? TimeSpan.FromSeconds(60))
                 : null
-        };
+        });
         return new ServiceFabricDistributedCache(options, locator, timeProvider);
     }
 
@@ -225,5 +226,68 @@ public class ServiceFabricDistributedCacheTest
         cache.Remove("mykey");
 
         proxy.Verify(p => p.RemoveCachedItemAsync(formattedKey), Times.Once);
+    }
+
+    [Theory, AutoMoqData]
+    public async Task SetAsync_AbsoluteExpirationEqualToNow_ThrowsInvalidOperationException(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var now = new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        timeProvider.SetUtcNow(now);
+
+        var cache = CreateCache(locator.Object, timeProvider);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            cache.SetAsync("mykey", new byte[] { 1 }, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpiration = now
+            }, TestContext.Current.CancellationToken));
+    }
+
+    [Theory, AutoMoqData]
+    public void Set_SyncWrapper_CallsProxy(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var proxy = new Mock<ICacheStoreService>();
+        var formattedKey = $"{TestCacheStoreId}-mykey";
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+
+        var cache = CreateCache(locator.Object, timeProvider);
+        cache.Set("mykey", new byte[] { 1 }, new DistributedCacheEntryOptions
+        {
+            SlidingExpiration = TimeSpan.FromMinutes(1)
+        });
+
+        locator.Verify(l => l.GetCacheStoreProxy(formattedKey), Times.Once);
+    }
+
+    [Theory, AutoMoqData]
+    public void Refresh_SyncWrapper_CallsProxy(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var proxy = new Mock<ICacheStoreService>();
+        var formattedKey = $"{TestCacheStoreId}-mykey";
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+
+        var cache = CreateCache(locator.Object, timeProvider);
+        cache.Refresh("mykey");
+
+        locator.Verify(l => l.GetCacheStoreProxy(formattedKey), Times.Once);
+    }
+
+    [Theory, AutoMoqData]
+    public void Dispose_WhenLocatorIsDisposable_DisposesLocator(
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var locatorMock = new Mock<IDistributedCacheStoreLocator>();
+        locatorMock.As<IDisposable>();
+
+        var cache = CreateCache(locatorMock.Object, timeProvider);
+        cache.Dispose();
+
+        locatorMock.As<IDisposable>().Verify(d => d.Dispose(), Times.Once);
     }
 }
