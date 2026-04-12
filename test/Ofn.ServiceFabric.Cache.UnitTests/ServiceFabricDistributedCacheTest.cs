@@ -178,4 +178,52 @@ public class ServiceFabricDistributedCacheTest
             cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions(),
                 TestContext.Current.CancellationToken));
     }
+
+    [Theory, AutoMoqData]
+    public async Task RefreshAsync_ValidKey_CallsGetOnProxy(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var proxy = new Mock<ICacheStoreService>();
+        var formattedKey = $"{TestCacheStoreId}-mykey";
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+
+        var cache = CreateCache(locator.Object, timeProvider);
+        await cache.RefreshAsync("mykey", TestContext.Current.CancellationToken);
+
+        proxy.Verify(p => p.GetCachedItemAsync(formattedKey), Times.Once);
+    }
+
+    [Theory, AutoMoqData]
+    public void Get_SyncMethod_ReturnsResultFromProxy(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var expected = new byte[] { 10, 20, 30 };
+        var proxy = new Mock<ICacheStoreService>();
+        var formattedKey = $"{TestCacheStoreId}-mykey";
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+        proxy.Setup(p => p.GetCachedItemAsync(formattedKey)).ReturnsAsync(expected);
+
+        var cache = CreateCache(locator.Object, timeProvider);
+        var result = cache.Get("mykey");
+
+        proxy.Verify(p => p.GetCachedItemAsync(formattedKey), Times.Once);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory, AutoMoqData]
+    public void Remove_SyncMethod_CallsProxyRemove(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var proxy = new Mock<ICacheStoreService>();
+        var formattedKey = $"{TestCacheStoreId}-mykey";
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+
+        var cache = CreateCache(locator.Object, timeProvider);
+        cache.Remove("mykey");
+
+        proxy.Verify(p => p.RemoveCachedItemAsync(formattedKey), Times.Once);
+    }
 }

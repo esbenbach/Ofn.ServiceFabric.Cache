@@ -22,9 +22,14 @@ public class ServiceFabricDistributedCache : IDistributedCache
         _timeProvider = timeProvider;
     }
 
+    /// <summary>
+    /// Synchronous wrapper. Prefer <see cref="GetAsync"/> in async call chains.
+    /// Uses <c>Task.Run</c> internally to avoid deadlocks under ASP.NET Core
+    /// synchronization contexts.
+    /// </summary>
     public byte[]? Get(string key)
     {
-        return GetAsync(key).GetAwaiter().GetResult();
+        return Task.Run(() => GetAsync(key)).GetAwaiter().GetResult();
     }
 
     public async Task<byte[]?> GetAsync(string key, CancellationToken token = default)
@@ -36,21 +41,31 @@ public class ServiceFabricDistributedCache : IDistributedCache
         return await proxy.GetCachedItemAsync(key).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Synchronous wrapper. Prefer <see cref="RefreshAsync"/> in async call chains.
+    /// Uses <c>Task.Run</c> internally to avoid deadlocks under ASP.NET Core
+    /// synchronization contexts.
+    /// </summary>
     public void Refresh(string key)
     {
-        RefreshAsync(key).GetAwaiter().GetResult();
+        Task.Run(() => RefreshAsync(key)).GetAwaiter().GetResult();
     }
 
     public async Task RefreshAsync(string key, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        await GetAsync(key, token);
+        await GetAsync(key, token).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Synchronous wrapper. Prefer <see cref="RemoveAsync"/> in async call chains.
+    /// Uses <c>Task.Run</c> internally to avoid deadlocks under ASP.NET Core
+    /// synchronization contexts.
+    /// </summary>
     public void Remove(string key)
     {
-        RemoveAsync(key).GetAwaiter().GetResult();
+        Task.Run(() => RemoveAsync(key)).GetAwaiter().GetResult();
     }
 
     public async Task RemoveAsync(string key, CancellationToken token = default)
@@ -62,9 +77,14 @@ public class ServiceFabricDistributedCache : IDistributedCache
         await proxy.RemoveCachedItemAsync(key).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Synchronous wrapper. Prefer <see cref="SetAsync"/> in async call chains.
+    /// Uses <c>Task.Run</c> internally to avoid deadlocks under ASP.NET Core
+    /// synchronization contexts.
+    /// </summary>
     public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
     {
-        SetAsync(key, value, options).GetAwaiter().GetResult();
+        Task.Run(() => SetAsync(key, value, options)).GetAwaiter().GetResult();
     }
 
     public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
