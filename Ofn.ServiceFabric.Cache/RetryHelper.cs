@@ -105,7 +105,7 @@ static class RetryHelper
             }
             catch (TimeoutException)
             {
-                if (attempts == DefaultMaxAttempts)
+                if (attempts >= maxAttempts - 1)
                 {
                     throw;
                 }
@@ -113,7 +113,7 @@ static class RetryHelper
 
             //exponential back-off
             int factor = (int)Math.Pow(2, attempts) + 1;
-            int delay = new Random(Guid.NewGuid().GetHashCode()).Next((int)(initialDelay.Value.TotalMilliseconds * 0.5D), (int)(initialDelay.Value.TotalMilliseconds * 1.5D));
+            int delay = Random.Shared.Next((int)(initialDelay.Value.TotalMilliseconds * 0.5D), (int)(initialDelay.Value.TotalMilliseconds * 1.5D));
             await Task.Delay(factor * delay, cancellationToken);
         }
         return result;

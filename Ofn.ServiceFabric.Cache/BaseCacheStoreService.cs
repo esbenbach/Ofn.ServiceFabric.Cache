@@ -59,9 +59,9 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     protected async override Task OnOpenAsync(ReplicaOpenMode openMode, CancellationToken cancellationToken)
     {
-        var client = new FabricClient();
+        using var client = new FabricClient();
         await client.PropertyManager.PutPropertyAsync(serviceUri, CacheStoreProperty, CacheStorePropertyValue);
-        partitionCount = (await client.QueryManager.GetPartitionListAsync(serviceUri)).Count;
+        partitionCount = (await client.QueryManager.GetPartitionListAsync(serviceUri, null, TimeSpan.FromSeconds(30), cancellationToken)).Count;
     }
 
     public async Task<byte[]> GetCachedItemAsync(string key)
@@ -174,12 +174,17 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
-        var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-        var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
-
-        while (true)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            await RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(cancellationToken);
+            try
+            {
+                await RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger?.LogError(ex, "Unhandled exception in cache pruning loop; pruning will resume after next interval.");
+            }
+
             await Task.Delay(TimeSpan.FromSeconds(this.settings.CachePruningInterval), cancellationToken);
         }
     }
