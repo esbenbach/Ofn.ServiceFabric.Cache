@@ -19,6 +19,10 @@ Pack NuGet packages (no build):
 dotnet pack --no-build
 ```
 
+## Project Settings
+
+All projects target **net10.0** with `<Nullable>enable</Nullable>` and `<ImplicitUsings>enable</ImplicitUsings>` (set in `Directory.Build.props`). All package versions are managed centrally in `Directory.Packages.props` (CPM). Do not add `Version` attributes to `<PackageReference>` elements in `.csproj` files.
+
 ## Architecture
 
 This is a distributed cache implemented on top of Azure Service Fabric Reliable Services, exposing a standard `IDistributedCache` interface.
@@ -57,8 +61,9 @@ All reads and writes go through `RetryHelper.ExecuteWithRetry`, which opens a tr
 
 ### Expiration Behavior
 
-- If neither sliding nor absolute expiration is provided by the caller, a **60-second sliding expiration is applied automatically** (`ServiceFabricDistributedCache.SetAsync`).
+- If neither absolute nor sliding expiration is provided, `ServiceFabricDistributedCache.SetAsync` falls back to `ServiceFabricCacheOptions.DefaultSlidingExpiration` (defaults to 60 seconds). If `DefaultSlidingExpiration` is `null`, an `InvalidOperationException` is thrown.
 - Expiry is **lazy on read**: expired items are removed when accessed, not on a timer.
+- `BaseCacheStoreService` uses `TimeProvider` (not `DateTime.UtcNow`) for all time comparisons, enabling deterministic testing via `FakeTimeProvider`.
 - A background loop in `RunAsync` calls `RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize` every `CachePruningInterval` seconds to evict expired/LRU items when the partition exceeds `MaxCacheSize / partitionCount` bytes.
 
 ### Custom Serializers
@@ -71,4 +76,7 @@ All reads and writes go through `RetryHelper.ExecuteWithRetry`, which opens a tr
 - **`LinkedDictionaryHelper` is pure.** It returns change sets (`LinkedDictionaryItemsChanged`) without touching the state manager. Keep it that way.
 - **`Shared.targets`** is imported by all NuGet-published `.csproj` files for shared package metadata (author, license, version).
 - **Tests use `[Theory, AutoMoqData]`** (AutoFixture + AutoMoq). Use `[Frozen]` to inject shared mocks, `[Greedy]` to select the most-parameterised constructor of the SUT. No SF cluster is needed—`IReliableStateManagerReplica2` is mocked.
+- **`StubCacheStoreService`** (inner class in `BaseCacheStoreServiceTest`) is the concrete test double for `BaseCacheStoreService`. Use `[Greedy]` so AutoFixture picks its 4-param ctor `(StatefulServiceContext, IReliableStateManagerReplica2, TimeProvider, ILogger?)`. Call `SetupInMemoryStores` to wire in-memory dictionaries and set the `_cacheStore`/`_cacheStoreMetadata` fields on the stub.
+- **`AutoMoqData` registers `FakeTimeProvider`** as the fixture implementation of `TimeProvider`. Inject `[Frozen] FakeTimeProvider` into tests to control the clock.
+- **SF SDK 8.4+ telemetry**: `StatefulServiceBase..ctor` calls telemetry that reads `ICodePackageActivationContext` string properties. `AutoMoqData` sets these up with non-null stubs; replicate this when building `StatefulServiceContext` outside the fixture.
 - **`ICacheStoreService` extends `IService`** (SF remoting marker interface). Any changes to its method signatures require regenerating the remoting proxy.
