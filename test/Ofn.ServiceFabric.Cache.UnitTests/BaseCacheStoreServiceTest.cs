@@ -535,10 +535,13 @@ public class BaseCacheStoreServiceTest
         public Task RunAsyncPublic(CancellationToken cancellationToken) =>
             base.RunAsync(cancellationToken);
 
-        public async Task RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize()
+        public Task RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize()
         {
-            await base.RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(CancellationToken.None);
+            return base.RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(CancellationToken.None);
         }
+
+        public Task RemoveExpiredCacheItemsPublic(CancellationToken cancellationToken = default) =>
+            base.RemoveExpiredCacheItemsAsync(cancellationToken);
     }
 
     private class CustomSettingsStub : BaseCacheStoreService
@@ -550,5 +553,23 @@ public class BaseCacheStoreServiceTest
 
         public void InitCacheStore(IReliableDictionary<string, CachedItem> store) => _cacheStore = store;
         public void InitCacheStoreMetadata(IReliableDictionary<string, CacheStoreMetadata> store) => _cacheStoreMetadata = store;
+
+        public Task RemoveExpiredCacheItemsPublic(CancellationToken cancellationToken = default) =>
+            base.RemoveExpiredCacheItemsAsync(cancellationToken);
+    }
+
+    /// <summary>Public version of <see cref="CustomSettingsStub"/> for use by other test classes.</summary>
+    public class CustomSettingsStubPublic : BaseCacheStoreService
+    {
+        public CustomSettingsStubPublic(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 replica, TimeProvider timeProvider)
+            : base(context, settings, replica, timeProvider)
+        {
+        }
+
+        public void InitCacheStore(IReliableDictionary<string, CachedItem> store) => _cacheStore = store;
+        public void InitCacheStoreMetadata(IReliableDictionary<string, CacheStoreMetadata> store) => _cacheStoreMetadata = store;
+
+        public Task RemoveExpiredCacheItemsPublic(CancellationToken cancellationToken = default) =>
+            base.RemoveExpiredCacheItemsAsync(cancellationToken);
     }
 }
