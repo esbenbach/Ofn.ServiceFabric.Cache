@@ -32,7 +32,7 @@ public class LinkedDictionaryHelperTest
         var result = await linkedDictionaryHelper.AddLast(cacheStoreMetadata, newItemKey, newCachedItem, cachedValue);
         Assert.Equal(2, result.CachedItemsToUpdate.Count);
 
-        var oldLastItem = result.CachedItemsToUpdate[result.CachedItemsToUpdate[newItemKey].BeforeCacheKey];
+        var oldLastItem = result.CachedItemsToUpdate[result.CachedItemsToUpdate[newItemKey].BeforeCacheKey!];
         Assert.Equal(newItemKey, oldLastItem.AfterCacheKey);
         Assert.Equal(cachedItem.Value.Value, oldLastItem.Value);
         Assert.Equal(cachedItem.Value.SlidingExpiration, oldLastItem.SlidingExpiration);

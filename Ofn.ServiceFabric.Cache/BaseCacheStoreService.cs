@@ -259,7 +259,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
                         var result = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
                         await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
-                        await cacheStore.TryRemoveAsync(tx, metadata.Value.FirstCacheKey);
+                        await cacheStore.TryRemoveAsync(tx, metadata.Value.FirstCacheKey!);
 
                         continueRemovingItems = result.CacheStoreMetadata.Size > GetMaxSizeInBytes();
                     }
@@ -284,7 +284,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         await cacheStoreMetadata.SetAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, linkedDictionaryItemsChanged.CacheStoreMetadata);
     }
 
-    private CachedItem ApplyAbsoluteExpiration(CachedItem cachedItem, DateTimeOffset? absoluteExpiration)
+    private CachedItem? ApplyAbsoluteExpiration(CachedItem? cachedItem, DateTimeOffset? absoluteExpiration)
     {
         if (cachedItem != null)
         {

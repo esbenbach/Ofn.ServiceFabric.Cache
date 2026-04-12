@@ -5,7 +5,7 @@ namespace Ofn.ServiceFabric.Cache;
 
 public sealed class CacheStoreMetadata
 {
-    public CacheStoreMetadata(long size, string firstCacheKey, string lastCacheKey)
+    public CacheStoreMetadata(long size, string? firstCacheKey, string? lastCacheKey)
     {
         Size = size;
         FirstCacheKey = firstCacheKey;
@@ -13,8 +13,8 @@ public sealed class CacheStoreMetadata
     }
 
     public long Size { get; private set; }
-    public string FirstCacheKey { get; private set; }
-    public string LastCacheKey { get; private set; }
+    public string? FirstCacheKey { get; private set; }
+    public string? LastCacheKey { get; private set; }
 }
 
 class CacheStoreMetadataSerializer : IStateSerializer<CacheStoreMetadata>
