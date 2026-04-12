@@ -1,6 +1,7 @@
 ﻿namespace Ofn.ServiceFabric.Cache.Client;
 
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Fabric;
 using System.Fabric.Description;
 using System.Fabric.Query;
@@ -51,11 +52,16 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
         // Try to locate a cache store if one is not configured
         if (serviceUri == null)
         {
+            var sw = Stopwatch.StartNew();
             serviceUri = await LocateCacheStoreAsync().ConfigureAwait(false);
+            sw.Stop();
             if (serviceUri == null)
             {
+                CacheClientMetrics.DiscoveryFailures.Add(1);
+                CacheClientMetrics.DiscoveryDuration.Record(sw.Elapsed.TotalMilliseconds, new TagList { { "status", "failed" } });
                 throw new CacheStoreNotFoundException("Cache store not found in Service Fabric cluster.  Try setting the 'CacheStoreServiceUri' configuration option to the location of your cache store.");
             }
+            CacheClientMetrics.DiscoveryDuration.Record(sw.Elapsed.TotalMilliseconds, new TagList { { "status", "success" } });
         }
 
         var partitionInformation = await GetPartitionInformationForCacheKey(cacheKey).ConfigureAwait(false);
@@ -91,7 +97,10 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
             {
                 if (_partitionList == null)
                 {
+                    var sw = Stopwatch.StartNew();
                     _partitionList = await FetchPartitionListAsync(serviceUri!).ConfigureAwait(false);
+                    sw.Stop();
+                    CacheClientMetrics.PartitionListRefreshDuration.Record(sw.Elapsed.TotalMilliseconds);
                 }
             }
             finally
@@ -110,7 +119,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
     protected internal virtual Task<ServicePartitionList> FetchPartitionListAsync(Uri uri)
         => fabricClient.QueryManager.GetPartitionListAsync(uri);
 
-    private async Task<Uri?> LocateCacheStoreAsync()
+    protected internal virtual async Task<Uri?> LocateCacheStoreAsync()
     {
         try
         {

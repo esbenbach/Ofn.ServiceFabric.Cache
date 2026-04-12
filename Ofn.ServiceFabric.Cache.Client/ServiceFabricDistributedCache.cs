@@ -1,5 +1,6 @@
 ﻿namespace Ofn.ServiceFabric.Cache.Client;
 
+using System.Diagnostics;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Ofn.ServiceFabric.Cache.Abstractions;
@@ -13,6 +14,9 @@ public class ServiceFabricDistributedCache : IDistributedCache
     private readonly Guid _cacheStoreId;
 
     private readonly TimeSpan? _defaultSlidingExpiration;
+
+    /// <summary>Returns a <see cref="TagList"/> pre-populated with the <c>cache_store_id</c> tag.</summary>
+    private TagList StoreIdTag => new TagList { { "cache_store_id", _cacheStoreId.ToString() } };
 
     public ServiceFabricDistributedCache(IOptions<ServiceFabricCacheOptions> options, IDistributedCacheStoreLocator distributedCacheStoreLocator, TimeProvider timeProvider)
     {
@@ -37,8 +41,27 @@ public class ServiceFabricDistributedCache : IDistributedCache
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         key = FormatCacheKey(key);
-        var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
-        return await proxy.GetCachedItemAsync(key).ConfigureAwait(false);
+        var sw = Stopwatch.StartNew();
+        var status = "success";
+        try
+        {
+            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
+            var result = await proxy.GetCachedItemAsync(key).ConfigureAwait(false);
+            CacheClientMetrics.Gets.Add(1, new TagList { { "result", result != null ? "hit" : "miss" }, { "cache_store_id", _cacheStoreId.ToString() } });
+            return result;
+        }
+        catch
+        {
+            status = "error";
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            CacheClientMetrics.OperationDuration.Record(
+                sw.Elapsed.TotalMilliseconds,
+                new TagList { { "operation", "get" }, { "cache_store_id", _cacheStoreId.ToString() }, { "status", status } });
+        }
     }
 
     /// <summary>
@@ -73,8 +96,25 @@ public class ServiceFabricDistributedCache : IDistributedCache
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         key = FormatCacheKey(key);
-        var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
-        await proxy.RemoveCachedItemAsync(key).ConfigureAwait(false);
+        var sw = Stopwatch.StartNew();
+        var status = "success";
+        try
+        {
+            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
+            await proxy.RemoveCachedItemAsync(key).ConfigureAwait(false);
+        }
+        catch
+        {
+            status = "error";
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            CacheClientMetrics.OperationDuration.Record(
+                sw.Elapsed.TotalMilliseconds,
+                new TagList { { "operation", "remove" }, { "cache_store_id", _cacheStoreId.ToString() }, { "status", status } });
+        }
     }
 
     /// <summary>
@@ -96,7 +136,10 @@ public class ServiceFabricDistributedCache : IDistributedCache
         if (absoluteExpireTime == null && options.SlidingExpiration == null)
         {
             if (_defaultSlidingExpiration.HasValue)
+            {
                 options.SlidingExpiration = _defaultSlidingExpiration.Value;
+                CacheClientMetrics.DefaultExpirationApplied.Add(1, StoreIdTag);
+            }
             else
                 throw new InvalidOperationException(
                     "No expiration was provided and DefaultSlidingExpiration is not configured. " +
@@ -105,9 +148,27 @@ public class ServiceFabricDistributedCache : IDistributedCache
 
         ValidateOptions(options.SlidingExpiration, absoluteExpireTime);
 
-        key = FormatCacheKey(key);
-        var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
-        await proxy.SetCachedItemAsync(key, value, options.SlidingExpiration, absoluteExpireTime).ConfigureAwait(false);
+        var sw = Stopwatch.StartNew();
+        var status = "success";
+        try
+        {
+            CacheClientMetrics.SetValueSize.Record(value.Length, StoreIdTag);
+            key = FormatCacheKey(key);
+            var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key).ConfigureAwait(false);
+            await proxy.SetCachedItemAsync(key, value, options.SlidingExpiration, absoluteExpireTime).ConfigureAwait(false);
+        }
+        catch
+        {
+            status = "error";
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            CacheClientMetrics.OperationDuration.Record(
+                sw.Elapsed.TotalMilliseconds,
+                new TagList { { "operation", "set" }, { "cache_store_id", _cacheStoreId.ToString() }, { "status", status } });
+        }
     }
 
     private static DateTimeOffset? GetAbsoluteExpiration(DateTimeOffset utcNow, DistributedCacheEntryOptions options)
