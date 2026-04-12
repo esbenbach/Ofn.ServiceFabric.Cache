@@ -194,6 +194,64 @@ public class LinkedDictionaryHelperTest
     }
 
     [Fact]
+    public async Task AddLast_WithNonZeroByteSizeOffset_SizeIncludesOffset()
+    {
+        var getCacheItemMock = new Mock<Func<string, Task<ConditionalValue<CachedItem>>>>();
+        var helper = new LinkedDictionaryHelper(getCacheItemMock.Object, 100);
+        var metadata = new CacheStoreMetadata(0, null, null);
+        var cachedValue = Encoding.UTF8.GetBytes("some value");
+        var newCachedItem = new CachedItem(cachedValue);
+
+        var result = await helper.AddLast(metadata, "key1", newCachedItem, cachedValue);
+
+        Assert.Equal(cachedValue.Length + 100, result.CacheStoreMetadata.Size);
+    }
+
+    [Fact]
+    public async Task AddLast_WithNonZeroByteSizeOffset_UpdatesExistingSize()
+    {
+        var getCacheItemMock = new Mock<Func<string, Task<ConditionalValue<CachedItem>>>>();
+        var helper = new LinkedDictionaryHelper(getCacheItemMock.Object, 100);
+        var existingItem = new CachedItem(Array.Empty<byte>());
+        getCacheItemMock.Setup(m => m(It.IsAny<string>())).ReturnsAsync(new ConditionalValue<CachedItem>(true, existingItem));
+        var metadata = new CacheStoreMetadata(200, "firstKey", "lastKey");
+        var cachedValue = Encoding.UTF8.GetBytes("some value");
+        var newCachedItem = new CachedItem(cachedValue);
+
+        var result = await helper.AddLast(metadata, "newKey", newCachedItem, cachedValue);
+
+        Assert.Equal(200 + cachedValue.Length + 100, result.CacheStoreMetadata.Size);
+    }
+
+    [Fact]
+    public async Task Remove_WithNonZeroByteSizeOffset_SizeSubtractsOffset()
+    {
+        var getCacheItemMock = new Mock<Func<string, Task<ConditionalValue<CachedItem>>>>();
+        var helper = new LinkedDictionaryHelper(getCacheItemMock.Object, 100);
+        var cachedValue = Encoding.UTF8.GetBytes("some value");
+        var metadata = new CacheStoreMetadata(cachedValue.Length + 100, null, null);
+        var item = new CachedItem(cachedValue, null, null);
+
+        var result = await helper.Remove(metadata, item);
+
+        Assert.Equal(0, result.CacheStoreMetadata.Size);
+    }
+
+    [Fact]
+    public async Task AddLast_MetadataWithLastKeyButNullFirstKey_ThrowsInvalidOperationException()
+    {
+        var getCacheItemMock = new Mock<Func<string, Task<ConditionalValue<CachedItem>>>>();
+        var helper = new LinkedDictionaryHelper(getCacheItemMock.Object);
+        var metadata = new CacheStoreMetadata(0, null, "someKey");
+        var cachedValue = Encoding.UTF8.GetBytes("some value");
+        var newCachedItem = new CachedItem(cachedValue);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            helper.AddLast(metadata, "newKey", newCachedItem, cachedValue));
+        Assert.Contains("inconsistent", ex.Message);
+    }
+
+    [Fact]
     public void LinkedDictionaryItemsChanged_SameValues_AreStructurallyEqual()
     {
         var dict = new Dictionary<string, CachedItem>();

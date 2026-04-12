@@ -87,6 +87,10 @@ public class LinkedDictionaryHelper
         // set current last item to be the second from last
         if (cacheStoreMetadata.LastCacheKey != null)
         {
+            if (cacheStoreMetadata.FirstCacheKey == null)
+                throw new InvalidOperationException(
+                    "Cache metadata is inconsistent: LastCacheKey is set but FirstCacheKey is null.");
+
             var currentLastResult = await _getCacheItem(cacheStoreMetadata.LastCacheKey);
             if (!currentLastResult.HasValue)
                 throw new InvalidOperationException($"Cache item '{cacheStoreMetadata.LastCacheKey}' was expected but not found in the cache store.");
