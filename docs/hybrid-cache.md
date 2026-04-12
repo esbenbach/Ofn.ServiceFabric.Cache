@@ -13,7 +13,7 @@ Because `Ofn.ServiceFabric.Cache.Client` registers a full `IDistributedCache` im
 
 | Requirement | Details |
 |---|---|
-| .NET | 9.0 or later |
+| .NET | 10.0 or later |
 | SF Cache client | `Ofn.ServiceFabric.Cache.Client` NuGet package |
 | HybridCache | `Microsoft.Extensions.Caching.Hybrid` NuGet package (in-box from .NET 9) |
 
