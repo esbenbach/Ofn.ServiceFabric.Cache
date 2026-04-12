@@ -132,39 +132,6 @@ This removes the entry from both L1 and L2. Note that other application instance
 
 ---
 
-## Serialization
-
-HybridCache serializes values before writing to L2. The default serializer is **`System.Text.Json`**. Ensure your cached types are JSON-serializable (public properties, no circular references, etc.).
-
-To use a custom serializer (e.g. MessagePack for smaller payloads):
-
-```csharp
-builder.Services.AddHybridCache()
-    .AddSerializer<MyType, MyTypeMessagePackSerializer>();
-```
-
----
-
-## Tags (bulk invalidation)
-
-HybridCache supports tagging entries for bulk removal:
-
-```csharp
-// Set with tags
-await cache.GetOrCreateAsync(
-    $"product:{id}",
-    factory,
-    tags: ["products"],
-    cancellationToken: ct);
-
-// Invalidate all entries tagged "products"
-await cache.RemoveByTagAsync("products", ct);
-```
-
-> **Important:** Tag-based invalidation only clears **L1** on the current instance when backed by an `IDistributedCache` that does not natively support tags (such as this library). Entries in L2 (Service Fabric) expire naturally or must be removed explicitly by key. Tag support is planned for a future HybridCache release.
-
----
-
 ## Observability / metrics
 
 Both the Service Fabric cache client and HybridCache emit `System.Diagnostics.Metrics` counters.
