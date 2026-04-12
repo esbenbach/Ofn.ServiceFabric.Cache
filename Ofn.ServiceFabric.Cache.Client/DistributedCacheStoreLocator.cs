@@ -1,10 +1,12 @@
 ﻿namespace Ofn.ServiceFabric.Cache.Client;
 
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Fabric;
 using System.Fabric.Description;
 using System.Fabric.Query;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -102,9 +104,24 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
 
     private async Task<ServicePartitionInformation> GetPartitionInformationForCacheKey(string cacheKey, Uri serviceUri, CancellationToken cancellationToken)
     {
-        using var md5 = MD5.Create();
-        var value = md5.ComputeHash(Encoding.UTF8.GetBytes(cacheKey));
-        var key = BitConverter.ToInt64(value, 0);
+        int byteCount = Encoding.UTF8.GetByteCount(cacheKey);
+        byte[]? rented = null;
+        Span<byte> inputBuffer = byteCount <= 512
+            ? stackalloc byte[byteCount]
+            : (rented = ArrayPool<byte>.Shared.Rent(byteCount)).AsSpan(0, byteCount);
+        long key;
+        try
+        {
+            Encoding.UTF8.GetBytes(cacheKey, inputBuffer);
+            Span<byte> hashBuffer = stackalloc byte[16];
+            MD5.HashData(inputBuffer, hashBuffer);
+            key = MemoryMarshal.Read<long>(hashBuffer);
+        }
+        finally
+        {
+            if (rented != null)
+                ArrayPool<byte>.Shared.Return(rented);
+        }
 
         if (_partitionList == null)
         {

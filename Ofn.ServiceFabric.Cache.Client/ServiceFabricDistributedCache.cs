@@ -13,14 +13,21 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
 
     private readonly Guid _cacheStoreId;
 
+    private readonly string _cacheStoreIdString;
+
+    private readonly string _keyPrefix;
+
     private readonly TimeSpan? _defaultSlidingExpiration;
 
-    /// <summary>Returns a <see cref="TagList"/> pre-populated with the <c>cache_store_id</c> tag.</summary>
-    private TagList StoreIdTag => new TagList { { "cache_store_id", _cacheStoreId.ToString() } };
+    /// <summary>Pre-populated <see cref="TagList"/> with the <c>cache_store_id</c> tag.</summary>
+    private readonly TagList _storeIdTag;
 
     public ServiceFabricDistributedCache(IOptions<ServiceFabricCacheOptions> options, IDistributedCacheStoreLocator distributedCacheStoreLocator, TimeProvider timeProvider)
     {
         _cacheStoreId = options.Value.CacheStoreId;
+        _cacheStoreIdString = _cacheStoreId.ToString();
+        _keyPrefix = $"{_cacheStoreIdString}-";
+        _storeIdTag = new TagList { { "cache_store_id", _cacheStoreIdString } };
         _defaultSlidingExpiration = options.Value.DefaultSlidingExpiration;
         _distributedCacheStoreLocator = distributedCacheStoreLocator;
         _timeProvider = timeProvider;
@@ -47,7 +54,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         {
             var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key, token).ConfigureAwait(false);
             var result = await proxy.GetCachedItemAsync(key).ConfigureAwait(false);
-            CacheClientMetrics.Gets.Add(1, new TagList { { "result", result != null ? "hit" : "miss" }, { "cache_store_id", _cacheStoreId.ToString() } });
+            CacheClientMetrics.Gets.Add(1, new TagList { { "result", result != null ? "hit" : "miss" }, { "cache_store_id", _cacheStoreIdString } });
             return result;
         }
         catch
@@ -60,7 +67,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
             sw.Stop();
             CacheClientMetrics.OperationDuration.Record(
                 sw.Elapsed.TotalMilliseconds,
-                new TagList { { "operation", "get" }, { "cache_store_id", _cacheStoreId.ToString() }, { "status", status } });
+                new TagList { { "operation", "get" }, { "cache_store_id", _cacheStoreIdString }, { "status", status } });
         }
     }
 
@@ -113,7 +120,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
             sw.Stop();
             CacheClientMetrics.OperationDuration.Record(
                 sw.Elapsed.TotalMilliseconds,
-                new TagList { { "operation", "remove" }, { "cache_store_id", _cacheStoreId.ToString() }, { "status", status } });
+                new TagList { { "operation", "remove" }, { "cache_store_id", _cacheStoreIdString }, { "status", status } });
         }
     }
 
@@ -138,7 +145,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
             if (_defaultSlidingExpiration.HasValue)
             {
                 options.SlidingExpiration = _defaultSlidingExpiration.Value;
-                CacheClientMetrics.DefaultExpirationApplied.Add(1, StoreIdTag);
+                CacheClientMetrics.DefaultExpirationApplied.Add(1, _storeIdTag);
             }
             else
                 throw new InvalidOperationException(
@@ -152,7 +159,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         var status = "success";
         try
         {
-            CacheClientMetrics.SetValueSize.Record(value.Length, StoreIdTag);
+            CacheClientMetrics.SetValueSize.Record(value.Length, _storeIdTag);
             key = FormatCacheKey(key);
             var proxy = await _distributedCacheStoreLocator.GetCacheStoreProxy(key, token).ConfigureAwait(false);
             await proxy.SetCachedItemAsync(key, value, options.SlidingExpiration, absoluteExpireTime).ConfigureAwait(false);
@@ -167,7 +174,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
             sw.Stop();
             CacheClientMetrics.OperationDuration.Record(
                 sw.Elapsed.TotalMilliseconds,
-                new TagList { { "operation", "set" }, { "cache_store_id", _cacheStoreId.ToString() }, { "status", status } });
+                new TagList { { "operation", "set" }, { "cache_store_id", _cacheStoreIdString }, { "status", status } });
         }
     }
 
@@ -198,8 +205,5 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
             throw new InvalidOperationException("Either absolute or sliding expiration needs to be provided.");
     }
 
-    private string FormatCacheKey(string key)
-    {
-        return $"{_cacheStoreId}-{key}";
-    }
+    private string FormatCacheKey(string key) => string.Concat(_keyPrefix, key);
 }
