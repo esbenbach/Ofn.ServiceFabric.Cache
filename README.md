@@ -74,6 +74,12 @@ Refer to the `CacheConsumer` project for a more complete example.
 
 See **[docs/hybrid-cache.md](docs/hybrid-cache.md)** for a full setup guide and usage examples.
 
+### Telemetry
+
+Both the cache store and client libraries expose `System.Diagnostics.Metrics` counters and histograms compatible with OpenTelemetry and `dotnet-counters`.
+
+See **[docs/telemetry.md](docs/telemetry.md)** for the full metrics reference.
+
 ## Why not just contribute to SoCreate Distributed Cache?
 
 Well there is only really one reason, I stumpled upon the SoCreate distributed cache while doing stuff at work, and found it lacked a few minor things I would like to have, but my initial PR was met with "not atm" (understandably, im not pointing fingers here).
