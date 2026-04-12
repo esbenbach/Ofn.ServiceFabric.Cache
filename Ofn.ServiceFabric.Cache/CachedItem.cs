@@ -84,13 +84,15 @@ class CachedItemSerializer : IStateSerializer<CachedItem>
 
     private static DateTimeOffset? GetDateTimeOffsetFromDateData(long dateDataTicks, long offsetTicks)
     {
+        if (dateDataTicks == 0)
+            return null;
         return new DateTimeOffset(DateTime.FromBinary(dateDataTicks), new TimeSpan(offsetTicks));
     }
 
     private static long GetLongDateTimeFromDateTimeOffset(DateTimeOffset? dateTimeOffset)
     {
         if (!dateTimeOffset.HasValue) return 0;
-        return dateTimeOffset.Value.Ticks;
+        return dateTimeOffset.Value.DateTime.ToBinary();
     }
 
     private static long GetShortOffsetFromDateTimeOffset(DateTimeOffset? dateTimeOffset)

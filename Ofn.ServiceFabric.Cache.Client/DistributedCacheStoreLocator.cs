@@ -28,9 +28,11 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
 
     private FabricClient fabricClient => _lazyFabricClient.Value;
 
-    private ServicePartitionList? _partitionList;
+    private volatile ServicePartitionList? _partitionList;
 
     private readonly SemaphoreSlim _partitionListLock = new SemaphoreSlim(1, 1);
+
+    private readonly ServiceProxyFactory _serviceProxyFactory;
 
     private readonly ConcurrentDictionary<Guid, ICacheStoreService> cacheStores;
 
@@ -47,6 +49,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
         this.endpointName = fabricOptions.CacheStoreEndpointName ?? ListenerName;
 
         _lazyFabricClient = new Lazy<FabricClient>(() => new FabricClient());
+        _serviceProxyFactory = new ServiceProxyFactory(_ => new FabricTransportServiceRemotingClientFactory());
         this.cacheStores = new ConcurrentDictionary<Guid, ICacheStoreService>();
 
         var configuredUri = fabricOptions.CacheStoreServiceUri;
@@ -90,8 +93,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
 
     protected internal virtual ICacheStoreService CreateCacheStoreProxy(Uri uri, ServicePartitionKey partitionKey, string endpoint)
     {
-        var proxyFactory = new ServiceProxyFactory(_ => new FabricTransportServiceRemotingClientFactory());
-        return proxyFactory.CreateServiceProxy<ICacheStoreService>(
+        return _serviceProxyFactory.CreateServiceProxy<ICacheStoreService>(
             uri,
             partitionKey,
             Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.Default,

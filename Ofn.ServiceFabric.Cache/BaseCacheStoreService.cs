@@ -29,6 +29,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     private int partitionCount = 1;
 
+    private long _maxSizeBytesPerPartition;
+
     // Metrics state: tracked size updated on every ApplyChanges, read by the gauge callback.
     // long is not a valid volatile field type in C#; Volatile.Read/Write are used for thread-safe access instead.
     private long _trackedSizeBytes;
@@ -108,9 +110,11 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
         _sizeLimitGauge = CacheMetrics.Meter.CreateObservableGauge<long>(
             "cache.size.limit.bytes",
-            () => new Measurement<long>(GetMaxSizeInBytes(), new KeyValuePair<string, object?>("partition_id", _partitionIdTag)),
+            () => new Measurement<long>(_maxSizeBytesPerPartition, new KeyValuePair<string, object?>("partition_id", _partitionIdTag)),
             "By",
             "Per-partition cache size limit");
+
+        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
     }
 
     protected override Task OnCloseAsync(CancellationToken cancellationToken)
@@ -412,9 +416,9 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                 }
 
                 if (CacheEventSource.Log.IsEnabled())
-                    CacheEventSource.Log.PruningCycleSize(metadata.Value.Size, GetMaxSizeInBytes());
+                    CacheEventSource.Log.PruningCycleSize(metadata.Value.Size, _maxSizeBytesPerPartition);
 
-                if (metadata.Value.Size > GetMaxSizeInBytes())
+                if (metadata.Value.Size > _maxSizeBytesPerPartition)
                 {
                     Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
                     var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
@@ -438,7 +442,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                         var addLastResult = await linkedDictionaryHelper.AddLast(removeResult.CacheStoreMetadata, firstItemKey, firstCachedItem, firstCachedItem.Value);
                         await ApplyChanges(tx, cacheStore, cacheStoreMetadata, addLastResult);
 
-                        continueRemovingItems = addLastResult.CacheStoreMetadata.Size > GetMaxSizeInBytes();
+                        continueRemovingItems = addLastResult.CacheStoreMetadata.Size > _maxSizeBytesPerPartition;
 
                         if (CacheEventSource.Log.IsEnabled())
                             CacheEventSource.Log.PruningMoved(firstItemKey);
@@ -454,7 +458,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                         await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
                         await cacheStore.TryRemoveAsync(tx, metadata.Value.FirstCacheKey!);
 
-                        continueRemovingItems = result.CacheStoreMetadata.Size > GetMaxSizeInBytes();
+                        continueRemovingItems = result.CacheStoreMetadata.Size > _maxSizeBytesPerPartition;
 
                         CacheMetrics.Evictions.Add(1, new TagList { { "reason", "expired" }, { "partition_id", _partitionIdTag } });
                     }
@@ -462,11 +466,6 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             }, onRetry: onRetry, onFinalFailure: onFinalFailure);
 
         }
-    }
-
-    private long GetMaxSizeInBytes()
-    {
-        return (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
     }
 
     private async Task ApplyChanges(ITransaction tx, IReliableDictionary<string, CachedItem> cachedItemStore, IReliableDictionary<string, CacheStoreMetadata> cacheStoreMetadata, LinkedDictionaryItemsChanged linkedDictionaryItemsChanged)
