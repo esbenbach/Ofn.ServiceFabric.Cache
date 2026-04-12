@@ -542,6 +542,9 @@ public class BaseCacheStoreServiceTest
 
         public Task RemoveExpiredCacheItemsPublic(CancellationToken cancellationToken = default) =>
             base.RemoveExpiredCacheItemsAsync(cancellationToken);
+
+        public Task<bool> TryRemoveCachedItemPublic(string key) =>
+            base.TryRemoveCachedItemAsync(key);
     }
 
     private class CustomSettingsStub : BaseCacheStoreService

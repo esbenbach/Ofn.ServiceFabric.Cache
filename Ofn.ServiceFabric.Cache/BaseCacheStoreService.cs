@@ -234,12 +234,19 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         }
     }
 
-    public async Task RemoveCachedItemAsync(string key)
+    public Task RemoveCachedItemAsync(string key) => TryRemoveCachedItemAsync(key);
+
+    /// <summary>
+    /// Removes the item with the given key. Returns <c>true</c> if the item existed and was removed,
+    /// <c>false</c> if it was already absent (e.g. removed by a concurrent operation).
+    /// </summary>
+    internal async Task<bool> TryRemoveCachedItemAsync(string key)
     {
         var sw = Stopwatch.StartNew();
         var cacheStore = CacheStore;
         var cacheStoreMetadata = CacheStoreMetadataDict;
         var (onRetry, onFinalFailure) = BuildRetryCallbacks("remove");
+        var removed = false;
 
         try
         {
@@ -259,6 +266,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                     var result = await linkedDictionaryHelper.Remove(cacheStoreInfo, cacheResult.Value);
 
                     await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
+                    removed = true;
                 }
             }, onRetry: onRetry, onFinalFailure: onFinalFailure);
         }
@@ -266,6 +274,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         {
             CacheMetrics.OperationDuration.Record(sw.Elapsed.TotalMilliseconds, new TagList { { "operation", "remove" }, { "partition_id", _partitionIdTag } });
         }
+
+        return removed;
     }
 
     protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
@@ -359,13 +369,15 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         });
 
         // Phase 2: remove each expired key via the existing single-item retried write path.
+        // TryRemoveCachedItemAsync returns false if the item was already removed by a concurrent
+        // operation (LRU loop or lazy on-read expiry) — only emit the eviction metric on actual removal.
         foreach (var key in expiredKeys)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             logger?.LogTrace("Expiration scan removing expired key: {Key} on partition {PartitionId}", key, _partitionIdTag);
-            await RemoveCachedItemAsync(key);
-            CacheMetrics.Evictions.Add(1, new TagList { { "reason", "expired" }, { "partition_id", _partitionIdTag } });
+            if (await TryRemoveCachedItemAsync(key))
+                CacheMetrics.Evictions.Add(1, new TagList { { "reason", "expired" }, { "partition_id", _partitionIdTag } });
         }
     }
 

@@ -338,4 +338,36 @@ public class ExpirationScanTest
             Assert.All(evictions, e => Assert.Equal(1L, (long)e.Value));
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // T10 — no double-counting: TryRemoveCachedItemAsync returns false and
+    //        the scan does not emit the eviction metric for an absent key
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Theory, AutoMoqData]
+    public async Task TryRemoveCachedItemAsync_KeyAlreadyAbsent_ReturnsFalseAndNoEvictionMetric(
+        [Frozen] Mock<IReliableStateManagerReplica2> stateManager,
+        [Frozen] Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
+        [Frozen] Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
+        [Frozen] FakeTimeProvider timeProvider,
+        [Greedy] BaseCacheStoreServiceTest.StubCacheStoreService cacheStore)
+    {
+        var now = new DateTimeOffset(2024, 6, 1, 12, 0, 0, TimeSpan.Zero);
+        timeProvider.SetUtcNow(now);
+
+        SetupInMemoryStores(stateManager, cacheItemDict, cacheStore);
+        SetupInMemoryStores(stateManager, metadataDict, cacheStore);
+
+        var (listener, recordings) = CreateEvictionListener();
+        using (listener)
+        {
+            // Key was never set — TryRemoveCachedItemAsync must return false
+            var removed = await cacheStore.TryRemoveCachedItemPublic("key-that-never-existed");
+            Assert.False(removed);
+
+            // The expiration scan must not emit an eviction metric for keys that are absent
+            var evictions = recordings.FindAll(r => r.Name == "cache.evictions");
+            Assert.Empty(evictions);
+        }
+    }
 }
