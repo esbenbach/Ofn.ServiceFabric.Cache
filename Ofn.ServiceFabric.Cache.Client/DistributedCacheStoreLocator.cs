@@ -80,7 +80,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
 
     private async Task<ServicePartitionInformation> GetPartitionInformationForCacheKey(string cacheKey)
     {
-        var md5 = MD5.Create();
+        using var md5 = MD5.Create();
         var value = md5.ComputeHash(Encoding.ASCII.GetBytes(cacheKey));
         var key = BitConverter.ToInt64(value, 0);
 

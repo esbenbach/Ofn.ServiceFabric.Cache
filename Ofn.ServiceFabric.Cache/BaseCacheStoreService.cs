@@ -60,7 +60,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     protected async override Task OnOpenAsync(ReplicaOpenMode openMode, CancellationToken cancellationToken)
     {
         using var client = new FabricClient();
-        await client.PropertyManager.PutPropertyAsync(serviceUri, CacheStoreProperty, CacheStorePropertyValue);
+        await client.PropertyManager.PutPropertyAsync(serviceUri, CacheStoreProperty, CacheStorePropertyValue, TimeSpan.FromSeconds(30), cancellationToken);
         partitionCount = (await client.QueryManager.GetPartitionListAsync(serviceUri, null, TimeSpan.FromSeconds(30), cancellationToken)).Count;
     }
 

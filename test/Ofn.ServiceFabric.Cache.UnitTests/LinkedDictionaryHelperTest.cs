@@ -65,7 +65,7 @@ public class LinkedDictionaryHelperTest
         getCacheItem.Setup(mock => mock(It.IsAny<string>())).ReturnsAsync(await Task.FromResult(cachedItem));
 
         var result = await linkedDictionaryHelper.AddLast(cacheStoreMetadata, newItemKey, newCachedItem, cachedValue);
-        Assert.Equal(1, result.CachedItemsToUpdate.Count);
+        Assert.Single(result.CachedItemsToUpdate);
 
         var newLastItem = result.CachedItemsToUpdate[newItemKey];
 

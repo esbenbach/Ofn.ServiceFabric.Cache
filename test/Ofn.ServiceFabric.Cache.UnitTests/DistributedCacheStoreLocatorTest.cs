@@ -37,7 +37,7 @@ public class DistributedCacheStoreLocatorTest
 
         // Start task 1 — it will acquire the semaphore and block inside FetchPartitionListAsync
         var task1 = Task.Run(() => locator.GetCacheStoreProxy("key1"));
-        await fetchStarted.WaitAsync();
+        await fetchStarted.WaitAsync(TestContext.Current.CancellationToken);
 
         // Start concurrent tasks while task1 holds _partitionListLock
         var concurrentTasks = Enumerable.Range(0, 5)
@@ -45,7 +45,7 @@ public class DistributedCacheStoreLocatorTest
             .ToArray();
 
         // Give the concurrent tasks time to reach _partitionListLock.WaitAsync()
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Allow the first fetch to complete — all waiting tasks should reuse the result
         fetchCanComplete.SetResult();

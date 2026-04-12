@@ -17,7 +17,8 @@ public class RetryHelperTest
             return Task.FromResult(42);
         };
 
-        var result = await RetryHelper.ExecuteWithRetry(operation, initialDelay: TimeSpan.FromMilliseconds(1));
+        var result = await RetryHelper.ExecuteWithRetry(operation, initialDelay: TimeSpan.FromMilliseconds(1),
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(42, result);
         Assert.Equal(1, callCount);
@@ -35,7 +36,8 @@ public class RetryHelperTest
             return Task.FromResult(42);
         };
 
-        var result = await RetryHelper.ExecuteWithRetry(operation, maxAttempts: 3, initialDelay: TimeSpan.FromMilliseconds(1));
+        var result = await RetryHelper.ExecuteWithRetry(operation, maxAttempts: 3, initialDelay: TimeSpan.FromMilliseconds(1),
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(42, result);
         Assert.Equal(2, callCount);
@@ -48,7 +50,8 @@ public class RetryHelperTest
             throw new TimeoutException("exhausted");
 
         await Assert.ThrowsAsync<TimeoutException>(() =>
-            RetryHelper.ExecuteWithRetry(operation, maxAttempts: 2, initialDelay: TimeSpan.FromMilliseconds(1)));
+            RetryHelper.ExecuteWithRetry(operation, maxAttempts: 2, initialDelay: TimeSpan.FromMilliseconds(1),
+                cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -62,7 +65,8 @@ public class RetryHelperTest
         };
 
         await Assert.ThrowsAsync<TimeoutException>(() =>
-            RetryHelper.ExecuteWithRetry(operation, maxAttempts: 2, initialDelay: TimeSpan.FromMilliseconds(1)));
+            RetryHelper.ExecuteWithRetry(operation, maxAttempts: 2, initialDelay: TimeSpan.FromMilliseconds(1),
+                cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(2, callCount);
     }

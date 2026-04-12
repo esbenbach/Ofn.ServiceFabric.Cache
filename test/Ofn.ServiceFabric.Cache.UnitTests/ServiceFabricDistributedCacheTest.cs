@@ -30,7 +30,7 @@ public class ServiceFabricDistributedCacheTest
         locator.Setup(l => l.GetCacheStoreProxy(expectedKey)).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
-        await cache.GetAsync("mykey");
+        await cache.GetAsync("mykey", TestContext.Current.CancellationToken);
 
         proxy.Verify(p => p.GetCachedItemAsync(expectedKey), Times.Once);
     }
@@ -45,7 +45,8 @@ public class ServiceFabricDistributedCacheTest
         locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
-        await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions());
+        await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions(),
+            TestContext.Current.CancellationToken);
 
         proxy.Verify(p => p.SetCachedItemAsync(
             formattedKey,
@@ -68,7 +69,7 @@ public class ServiceFabricDistributedCacheTest
         await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions
         {
             SlidingExpiration = slidingExpiry
-        });
+        }, TestContext.Current.CancellationToken);
 
         proxy.Verify(p => p.SetCachedItemAsync(
             formattedKey,
@@ -93,7 +94,7 @@ public class ServiceFabricDistributedCacheTest
         await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
-        });
+        }, TestContext.Current.CancellationToken);
 
         proxy.Verify(p => p.SetCachedItemAsync(
             formattedKey,
@@ -112,7 +113,7 @@ public class ServiceFabricDistributedCacheTest
         locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
 
         var cache = CreateCache(locator.Object, timeProvider);
-        await cache.RemoveAsync("mykey");
+        await cache.RemoveAsync("mykey", TestContext.Current.CancellationToken);
 
         proxy.Verify(p => p.RemoveCachedItemAsync(formattedKey), Times.Once);
     }
@@ -124,7 +125,7 @@ public class ServiceFabricDistributedCacheTest
     {
         var cache = CreateCache(locator.Object, timeProvider);
 
-        await Assert.ThrowsAnyAsync<ArgumentException>(() => cache.GetAsync(null!));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => cache.GetAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Theory, AutoMoqData]
@@ -135,6 +136,6 @@ public class ServiceFabricDistributedCacheTest
         var cache = CreateCache(locator.Object, timeProvider);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            cache.SetAsync("mykey", null!, new DistributedCacheEntryOptions()));
+            cache.SetAsync("mykey", null!, new DistributedCacheEntryOptions(), TestContext.Current.CancellationToken));
     }
 }
