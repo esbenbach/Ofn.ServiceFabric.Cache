@@ -13,8 +13,6 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 {
     private const int BytesInMegabyte = 1048576; // 1024 * 1024
 
-    internal const int ByteSizeOffset = 250;
-
     internal const string CacheStoreProperty = "CacheStore";
 
     internal const string CacheStorePropertyValue = "true";
@@ -28,6 +26,9 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     private readonly CacheStoreSettings settings;
 
     private int partitionCount = 1;
+
+    protected IReliableDictionary<string, CachedItem>? _cacheStore;
+    protected IReliableDictionary<string, CacheStoreMetadata>? _cacheStoreMetadata;
 
     public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings? settings = null, ILogger<ICacheStoreService>? logger = null)
         : base(context)
@@ -57,16 +58,24 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         this.settings = settings;
     }
 
+    private IReliableDictionary<string, CachedItem> CacheStore =>
+        _cacheStore ?? throw new InvalidOperationException("Cache store has not been initialized. Ensure OnOpenAsync completes before processing requests.");
+
+    private IReliableDictionary<string, CacheStoreMetadata> CacheStoreMetadataDict =>
+        _cacheStoreMetadata ?? throw new InvalidOperationException("Cache metadata store has not been initialized. Ensure OnOpenAsync completes before processing requests.");
+
     protected async override Task OnOpenAsync(ReplicaOpenMode openMode, CancellationToken cancellationToken)
     {
         using var client = new FabricClient();
         await client.PropertyManager.PutPropertyAsync(serviceUri, CacheStoreProperty, CacheStorePropertyValue, TimeSpan.FromSeconds(30), cancellationToken);
         partitionCount = (await client.QueryManager.GetPartitionListAsync(serviceUri, null, TimeSpan.FromSeconds(30), cancellationToken)).Count;
+        _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+        _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
     }
 
     public async Task<byte[]> GetCachedItemAsync(string key)
     {
-        var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+        var cacheStore = CacheStore;
 
         var cacheResult = await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
         {
@@ -104,8 +113,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             absoluteExpiration = now.AddMilliseconds(slidingExpiration.Value.TotalMilliseconds);
         }
 
-        var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-        var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
+        var cacheStore = CacheStore;
+        var cacheStoreMetadata = CacheStoreMetadataDict;
 
         await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) => 
         {
@@ -123,7 +132,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             // empty linked dictionary
             if (cacheStoreInfo.FirstCacheKey == null)
             {
-                var metadata = new CacheStoreMetadata(value.Length + ByteSizeOffset, key, key);
+                var metadata = new CacheStoreMetadata(value.Length + this.settings.ByteSizeOffset, key, key);
                 await cacheStoreMetadata.SetAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, metadata);
                 await cacheStore.SetAsync(tx, key, cachedItem);
             }
@@ -148,8 +157,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     public async Task RemoveCachedItemAsync(string key)
     {
-        var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-        var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
+        var cacheStore = CacheStore;
+        var cacheStoreMetadata = CacheStoreMetadataDict;
 
         await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
         {
@@ -159,7 +168,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             if (cacheResult.HasValue)
             {
                 Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
-                var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
+                var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
 
                 var cacheStoreInfoResult = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update);
                 var cacheStoreInfo = cacheStoreInfoResult.HasValue ? cacheStoreInfoResult.Value : new CacheStoreMetadata(0, null, null);
@@ -200,8 +209,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     /// <returns></returns>
     protected async Task RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(CancellationToken cancellationToken)
     {
-        var cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-        var cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
+        var cacheStore = CacheStore;
+        var cacheStoreMetadata = CacheStoreMetadataDict;
         bool continueRemovingItems = true;
 
         while (continueRemovingItems)
@@ -223,7 +232,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                 if (metadata.Value.Size > GetMaxSizeInBytes())
                 {
                     Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
-                    var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
+                    var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
 
                     var firstItemKey = metadata.Value.FirstCacheKey;
                     var firstItemResult = await getCacheItem(firstItemKey);
