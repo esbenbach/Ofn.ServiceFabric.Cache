@@ -41,7 +41,7 @@ public class BaseCacheStoreServiceTest
     }
 
     [Theory, AutoMoqData]
-    public async Task GetCachedItemAsync_GetItemThatExistsWithAbsoluteExpiration_ItemIsMovedToLastItem(
+    public async Task GetCachedItemAsync_GetItemThatExistsWithAbsoluteExpiration_ItemIsNotMovedToLastItem(
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
         [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
@@ -63,9 +63,10 @@ public class BaseCacheStoreServiceTest
 
         Assert.Equal("mykey3", metadata["CacheStoreMetadata"].LastCacheKey);
 
+        // Absolute-expiry-only items do NOT update LRU order on read (CRIT-1 optimisation).
         await cacheStore.GetCachedItemAsync("mykey2");
 
-        Assert.Equal("mykey2", metadata["CacheStoreMetadata"].LastCacheKey);
+        Assert.Equal("mykey3", metadata["CacheStoreMetadata"].LastCacheKey);
     }
 
     [Theory, AutoMoqData]
