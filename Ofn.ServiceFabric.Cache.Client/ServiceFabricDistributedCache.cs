@@ -12,9 +12,12 @@ public class ServiceFabricDistributedCache : IDistributedCache
 
     private readonly Guid _cacheStoreId;
 
+    private readonly TimeSpan? _defaultSlidingExpiration;
+
     public ServiceFabricDistributedCache(IOptions<ServiceFabricCacheOptions> options, IDistributedCacheStoreLocator distributedCacheStoreLocator, TimeProvider timeProvider)
     {
         _cacheStoreId = options.Value.CacheStoreId;
+        _defaultSlidingExpiration = options.Value.DefaultSlidingExpiration;
         _distributedCacheStoreLocator = distributedCacheStoreLocator;
         _timeProvider = timeProvider;
     }
@@ -72,7 +75,12 @@ public class ServiceFabricDistributedCache : IDistributedCache
         var absoluteExpireTime = GetAbsoluteExpiration(_timeProvider.GetUtcNow(), options);
         if (absoluteExpireTime == null && options.SlidingExpiration == null)
         {
-            options.SlidingExpiration = TimeSpan.FromSeconds(60);
+            if (_defaultSlidingExpiration.HasValue)
+                options.SlidingExpiration = _defaultSlidingExpiration.Value;
+            else
+                throw new InvalidOperationException(
+                    "No expiration was provided and DefaultSlidingExpiration is not configured. " +
+                    "Either set an expiration on the DistributedCacheEntryOptions or configure DefaultSlidingExpiration in ServiceFabricCacheOptions.");
         }
 
         ValidateOptions(options.SlidingExpiration, absoluteExpireTime);

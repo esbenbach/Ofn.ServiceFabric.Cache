@@ -14,9 +14,17 @@ public class ServiceFabricDistributedCacheTest
     private static ServiceFabricDistributedCache CreateCache(
         IDistributedCacheStoreLocator locator,
         TimeProvider timeProvider,
-        Guid? cacheStoreId = null)
+        Guid? cacheStoreId = null,
+        TimeSpan? defaultSlidingExpiration = null,
+        bool useDefaultSlidingExpiration = true)
     {
-        var options = new ServiceFabricCacheOptions { CacheStoreId = cacheStoreId ?? TestCacheStoreId };
+        var options = new ServiceFabricCacheOptions
+        {
+            CacheStoreId = cacheStoreId ?? TestCacheStoreId,
+            DefaultSlidingExpiration = useDefaultSlidingExpiration
+                ? (defaultSlidingExpiration ?? TimeSpan.FromSeconds(60))
+                : null
+        };
         return new ServiceFabricDistributedCache(options, locator, timeProvider);
     }
 
@@ -137,5 +145,37 @@ public class ServiceFabricDistributedCacheTest
 
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             cache.SetAsync("mykey", null!, new DistributedCacheEntryOptions(), TestContext.Current.CancellationToken));
+    }
+
+    [Theory, AutoMoqData]
+    public async Task SetAsync_CustomDefaultSlidingExpiration_AppliesConfiguredDefault(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var proxy = new Mock<ICacheStoreService>();
+        var formattedKey = $"{TestCacheStoreId}-mykey";
+        locator.Setup(l => l.GetCacheStoreProxy(formattedKey)).ReturnsAsync(proxy.Object);
+
+        var cache = CreateCache(locator.Object, timeProvider, defaultSlidingExpiration: TimeSpan.FromMinutes(10));
+        await cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions(),
+            TestContext.Current.CancellationToken);
+
+        proxy.Verify(p => p.SetCachedItemAsync(
+            formattedKey,
+            It.IsAny<byte[]>(),
+            TimeSpan.FromMinutes(10),
+            null), Times.Once);
+    }
+
+    [Theory, AutoMoqData]
+    public async Task SetAsync_DefaultSlidingExpirationNull_ThrowsWhenNoExpirationProvided(
+        [Frozen] Mock<IDistributedCacheStoreLocator> locator,
+        [Frozen] FakeTimeProvider timeProvider)
+    {
+        var cache = CreateCache(locator.Object, timeProvider, useDefaultSlidingExpiration: false);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            cache.SetAsync("mykey", new byte[] { 1, 2, 3 }, new DistributedCacheEntryOptions(),
+                TestContext.Current.CancellationToken));
     }
 }
