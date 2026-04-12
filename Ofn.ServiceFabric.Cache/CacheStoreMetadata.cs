@@ -5,24 +5,26 @@ namespace Ofn.ServiceFabric.Cache;
 
 public sealed class CacheStoreMetadata
 {
-    public CacheStoreMetadata(int size, string firstCacheKey, string lastCacheKey)
+    public CacheStoreMetadata(long size, string firstCacheKey, string lastCacheKey)
     {
         Size = size;
         FirstCacheKey = firstCacheKey;
         LastCacheKey = lastCacheKey;
     }
 
-    public int Size { get; private set; }
+    public long Size { get; private set; }
     public string FirstCacheKey { get; private set; }
     public string LastCacheKey { get; private set; }
 }
 
 class CacheStoreMetadataSerializer : IStateSerializer<CacheStoreMetadata>
 {
+    // NOTE: Size changed from int (4 bytes) to long (8 bytes) in v2 format.
+    // Existing replicas must be drained before upgrading.
     CacheStoreMetadata IStateSerializer<CacheStoreMetadata>.Read(BinaryReader reader)
     {
         return new CacheStoreMetadata(
-            reader.ReadInt32(),
+            reader.ReadInt64(),
             GetStringValueOrNull(reader.ReadString()),
             GetStringValueOrNull(reader.ReadString())
             );

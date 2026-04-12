@@ -391,6 +391,14 @@ public class BaseCacheStoreServiceTest
         Assert.True(ex is null || ex is OperationCanceledException);
     }
 
+    [Fact]
+    public void SetCachedItemAsync_SizeExceeds2GBThreshold_DoesNotOverflow()
+    {
+        long sizeOver2GB = (long)int.MaxValue + 1;
+        var metadata = new CacheStoreMetadata(sizeOver2GB, "firstKey", "lastKey");
+        Assert.Equal(sizeOver2GB, metadata.Size);
+    }
+
     private static Dictionary<TKey, TValue> SetupInMemoryStores<TKey, TValue>(Mock<IReliableStateManagerReplica2> stateManager, Mock<IReliableDictionary<TKey, TValue>> reliableDict) where TKey : IComparable<TKey>, IEquatable<TKey>
     {
         var inMemoryDict = new Dictionary<TKey, TValue>();
