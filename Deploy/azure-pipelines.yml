@@ -34,7 +34,7 @@ steps:
   inputs:
     command: test
     projects: '**/test/**/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/TestResults'
+    arguments: '--configuration $(buildConfiguration) --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory $(Agent.TempDirectory)/TestResults'
     publishTestResults: false
 
 - task: PublishTestResults@2
@@ -44,6 +44,12 @@ steps:
     testResultsFormat: VSTest
     testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
     failTaskOnFailedTests: true
+
+- task: PublishCodeCoverageResults@2
+  displayName: "Publish code coverage"
+  condition: always()
+  inputs:
+    summaryFileLocation: '$(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml'
 
 - task: DotNetCoreCLI@2
   displayName: "dotnet pack"
