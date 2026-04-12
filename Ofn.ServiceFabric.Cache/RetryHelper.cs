@@ -29,15 +29,17 @@ static class RetryHelper
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
 
-        Func<CancellationToken, object?, Task<TResult>> wrapped = async (_, _) =>
+        TResult? result = default;
+        for (int attempts = 0; attempts < maxAttempts; attempts++)
         {
-            TResult result;
-            using (var tran = stateManager.CreateTransaction())
+            try
             {
+                using var tran = stateManager.CreateTransaction();
                 try
                 {
                     result = await operation(tran, cancellationToken, state);
                     await tran.CommitAsync();
+                    break;
                 }
                 catch (Exception ex) when (ex is TimeoutException or FabricTransientException)
                 {
@@ -45,11 +47,23 @@ static class RetryHelper
                     throw;
                 }
             }
-            return result;
-        };
+            catch (Exception ex) when (ex is TimeoutException or FabricTransientException)
+            {
+                if (attempts >= maxAttempts - 1)
+                {
+                    onFinalFailure?.Invoke();
+                    throw;
+                }
+                onRetry?.Invoke(attempts);
+            }
 
-        var outerResult = await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay, onRetry, onFinalFailure);
-        return outerResult!;
+            int factor = Math.Min(1 << attempts, MaxBackOffFactor) + 1;
+            int delay = Random.Shared.Next(
+                (int)(initialDelay.Value.TotalMilliseconds * 0.5D),
+                (int)(initialDelay.Value.TotalMilliseconds * 1.5D));
+            await Task.Delay(factor * delay, cancellationToken);
+        }
+        return result!;
     }
 
     public static async Task ExecuteWithRetry(
@@ -68,14 +82,16 @@ static class RetryHelper
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
 
-        Func<CancellationToken, object?, Task<object?>> wrapped = async (_, _) =>
+        for (int attempts = 0; attempts < maxAttempts; attempts++)
         {
-            using (var tran = stateManager.CreateTransaction())
+            try
             {
+                using var tran = stateManager.CreateTransaction();
                 try
                 {
                     await operation(tran, cancellationToken, state);
                     await tran.CommitAsync();
+                    break;
                 }
                 catch (Exception ex) when (ex is TimeoutException or FabricTransientException)
                 {
@@ -83,10 +99,22 @@ static class RetryHelper
                     throw;
                 }
             }
-            return null;
-        };
+            catch (Exception ex) when (ex is TimeoutException or FabricTransientException)
+            {
+                if (attempts >= maxAttempts - 1)
+                {
+                    onFinalFailure?.Invoke();
+                    throw;
+                }
+                onRetry?.Invoke(attempts);
+            }
 
-        await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay, onRetry, onFinalFailure);
+            int factor = Math.Min(1 << attempts, MaxBackOffFactor) + 1;
+            int delay = Random.Shared.Next(
+                (int)(initialDelay.Value.TotalMilliseconds * 0.5D),
+                (int)(initialDelay.Value.TotalMilliseconds * 1.5D));
+            await Task.Delay(factor * delay, cancellationToken);
+        }
     }
 
     public static async Task<TResult?> ExecuteWithRetry<TResult>(
@@ -123,7 +151,7 @@ static class RetryHelper
             }
 
             //exponential back-off
-            int factor = (int)Math.Min(Math.Pow(2, attempts), MaxBackOffFactor) + 1;
+            int factor = Math.Min(1 << attempts, MaxBackOffFactor) + 1;
             int delay = Random.Shared.Next((int)(initialDelay.Value.TotalMilliseconds * 0.5D), (int)(initialDelay.Value.TotalMilliseconds * 1.5D));
             await Task.Delay(factor * delay, cancellationToken);
         }
