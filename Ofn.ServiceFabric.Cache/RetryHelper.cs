@@ -2,6 +2,7 @@
 
 using Microsoft.ServiceFabric.Data;
 using System;
+using System.Fabric;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,7 +39,7 @@ static class RetryHelper
                     result = await operation(tran, cancellationToken, state);
                     await tran.CommitAsync();
                 }
-                catch (TimeoutException)
+                catch (Exception ex) when (ex is TimeoutException or FabricTransientException)
                 {
                     tran.Abort();
                     throw;
@@ -76,7 +77,7 @@ static class RetryHelper
                     await operation(tran, cancellationToken, state);
                     await tran.CommitAsync();
                 }
-                catch (TimeoutException)
+                catch (Exception ex) when (ex is TimeoutException or FabricTransientException)
                 {
                     tran.Abort();
                     throw;
@@ -110,7 +111,7 @@ static class RetryHelper
                 result = await operation(cancellationToken, state);
                 break;
             }
-            catch (TimeoutException)
+            catch (Exception ex) when (ex is TimeoutException or FabricTransientException)
             {
                 if (attempts >= maxAttempts - 1)
                 {

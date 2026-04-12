@@ -1,6 +1,7 @@
 namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using System;
+using System.Fabric;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.ServiceFabric.Data;
@@ -182,5 +183,35 @@ public class RetryHelperTest
 
         Assert.True(operationCalled);
         transaction.Verify(t => t.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteWithRetry_FabricTransientException_IsRetried()
+    {
+        int callCount = 0;
+        Func<CancellationToken, object?, Task<int>> operation = (_, _) =>
+        {
+            callCount++;
+            if (callCount == 1)
+                throw new FabricTransientException();
+            return Task.FromResult(42);
+        };
+
+        var result = await RetryHelper.ExecuteWithRetry(operation, maxAttempts: 3, initialDelay: TimeSpan.FromMilliseconds(1),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(42, result);
+        Assert.Equal(2, callCount);
+    }
+
+    [Fact]
+    public async Task ExecuteWithRetry_FabricTransientException_RethrowsAfterMaxAttempts()
+    {
+        Func<CancellationToken, object?, Task<int>> operation = (_, _) =>
+            throw new FabricTransientException();
+
+        await Assert.ThrowsAsync<FabricTransientException>(() =>
+            RetryHelper.ExecuteWithRetry(operation, maxAttempts: 2, initialDelay: TimeSpan.FromMilliseconds(1),
+                cancellationToken: TestContext.Current.CancellationToken));
     }
 }
