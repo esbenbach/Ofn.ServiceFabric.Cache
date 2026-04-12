@@ -357,7 +357,6 @@ public class BaseCacheStoreServiceTest
 
     [Theory, AutoMoqData]
     public async Task RunAsync_PruningThrowsTransientException_ExceptionIsLoggedAndLoopContinues(
-        [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<ILogger<ICacheStoreService>> logger,
         [Greedy]StubCacheStoreService cacheStore)
     {
