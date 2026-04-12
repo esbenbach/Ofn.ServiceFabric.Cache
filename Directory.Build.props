@@ -10,7 +10,7 @@
     <PropertyGroup>
         <Authors>Esben Bach</Authors>
         <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-        <PackageLicenseUrl>https://raw.githubusercontent.com/esbenbach/Ofn.ServiceFabric.Cache/master/LICENSE</PackageLicenseUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <Description>
           An implementation of the IDistributedCache that uses a Stateful Reliable Service Fabric service to act as the cache store.
           You can use this library to setup a distributed cache and use Service Fabric instead of Redis or SQL Server.
