@@ -37,11 +37,11 @@ public class LinkedDictionaryHelper
         // first item in linked dictionary
         if (before == null)
         {
-            var afterResult = await _getCacheItem(after);
+            var afterResult = await _getCacheItem(after!);
             if (!afterResult.HasValue)
                 throw new InvalidOperationException($"Cache item '{after}' was expected but not found in the cache store.");
             var afterCachedItem = afterResult.Value;
-            var newCachedItem = new Dictionary<string, CachedItem> { { after, new CachedItem(afterCachedItem.Value, null, afterCachedItem.AfterCacheKey, afterCachedItem.SlidingExpiration, afterCachedItem.AbsoluteExpiration) } };
+            var newCachedItem = new Dictionary<string, CachedItem> { { after!, new CachedItem(afterCachedItem.Value, null, afterCachedItem.AfterCacheKey, afterCachedItem.SlidingExpiration, afterCachedItem.AbsoluteExpiration) } };
             return new LinkedDictionaryItemsChanged(newCachedItem, new CacheStoreMetadata(size, after, cacheStoreMetadata.LastCacheKey));
         }
 

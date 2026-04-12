@@ -73,7 +73,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
     }
 
-    public async Task<byte[]> GetCachedItemAsync(string key)
+    public async Task<byte[]?> GetCachedItemAsync(string key)
     {
         var cacheStore = CacheStore;
 
@@ -235,6 +235,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                     var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
 
                     var firstItemKey = metadata.Value.FirstCacheKey;
+                    if (firstItemKey == null)
+                        throw new InvalidOperationException("Cache metadata is inconsistent: size is non-zero but FirstCacheKey is null.");
                     var firstItemResult = await getCacheItem(firstItemKey);
                     if (!firstItemResult.HasValue)
                         throw new InvalidOperationException($"Cache item '{firstItemKey}' was expected but not found in the cache store.");

@@ -49,7 +49,7 @@ class CacheStoreMetadataSerializer : IStateSerializer<CacheStoreMetadata>
         ((IStateSerializer<CacheStoreMetadata>)this).Write(newValue, writer);
     }
 
-    private string GetStringValueOrNull(string value)
+    private string? GetStringValueOrNull(string value)
     {
         return value == string.Empty ? null : value;
     }
