@@ -420,6 +420,56 @@ public class BaseCacheStoreServiceTest
     }
 
     [Theory, AutoMoqData]
+    public void Constructor_MaxCacheSizeZero_ThrowsArgumentException(
+        StatefulServiceContext context,
+        Mock<IReliableStateManagerReplica2> stateManager,
+        FakeTimeProvider timeProvider)
+    {
+        var settings = new CacheStoreSettings { MaxCacheSize = 0 };
+        Assert.Throws<ArgumentException>(() => new CustomSettingsStub(context, settings, stateManager.Object, timeProvider));
+    }
+
+    [Theory, AutoMoqData]
+    public void Constructor_MaxCacheSizeNegative_ThrowsArgumentException(
+        StatefulServiceContext context,
+        Mock<IReliableStateManagerReplica2> stateManager,
+        FakeTimeProvider timeProvider)
+    {
+        var settings = new CacheStoreSettings { MaxCacheSize = -1 };
+        Assert.Throws<ArgumentException>(() => new CustomSettingsStub(context, settings, stateManager.Object, timeProvider));
+    }
+
+    [Theory, AutoMoqData]
+    public void Constructor_ByteSizeOffsetNegative_ThrowsArgumentException(
+        StatefulServiceContext context,
+        Mock<IReliableStateManagerReplica2> stateManager,
+        FakeTimeProvider timeProvider)
+    {
+        var settings = new CacheStoreSettings { ByteSizeOffset = -1 };
+        Assert.Throws<ArgumentException>(() => new CustomSettingsStub(context, settings, stateManager.Object, timeProvider));
+    }
+
+    [Theory, AutoMoqData]
+    public void Constructor_CachePruningIntervalZero_ThrowsArgumentException(
+        StatefulServiceContext context,
+        Mock<IReliableStateManagerReplica2> stateManager,
+        FakeTimeProvider timeProvider)
+    {
+        var settings = new CacheStoreSettings { CachePruningInterval = 0 };
+        Assert.Throws<ArgumentException>(() => new CustomSettingsStub(context, settings, stateManager.Object, timeProvider));
+    }
+
+    [Theory, AutoMoqData]
+    public void Constructor_ListenerNameEmpty_ThrowsArgumentException(
+        StatefulServiceContext context,
+        Mock<IReliableStateManagerReplica2> stateManager,
+        FakeTimeProvider timeProvider)
+    {
+        var settings = new CacheStoreSettings { ListenerName = "" };
+        Assert.Throws<ArgumentException>(() => new CustomSettingsStub(context, settings, stateManager.Object, timeProvider));
+    }
+
+    [Theory, AutoMoqData]
     public async Task RemoveCachedItemAsync_CustomByteSizeOffset_SizeAccountsForOffset(
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
@@ -427,7 +477,7 @@ public class BaseCacheStoreServiceTest
         [Frozen]FakeTimeProvider timeProvider,
         StatefulServiceContext context)
     {
-        var customSettings = new CacheStoreSettings { MaxCacheSize = 1, CachePruningInterval = 0, ByteSizeOffset = 100 };
+        var customSettings = new CacheStoreSettings { MaxCacheSize = 1, CachePruningInterval = 1, ByteSizeOffset = 100 };
         var cacheStore = new CustomSettingsStub(context, customSettings, stateManager.Object, timeProvider);
 
         var cacheValue = Encoding.UTF8.GetBytes("someValue");
@@ -475,7 +525,7 @@ public class BaseCacheStoreServiceTest
     public class StubCacheStoreService : BaseCacheStoreService
     {
         public StubCacheStoreService(StatefulServiceContext context, IReliableStateManagerReplica2 replica, TimeProvider timeProvider, ILogger<ICacheStoreService>? logger = null)
-            : base(context, new CacheStoreSettings() { MaxCacheSize = 1, CachePruningInterval = 0 }, replica, timeProvider, logger)
+            : base(context, new CacheStoreSettings() { MaxCacheSize = 1, CachePruningInterval = 1 }, replica, timeProvider, logger)
         {
         }
 

@@ -46,6 +46,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         this.logger = logger;
         this.timeProvider = TimeProvider.System;
         this.settings = settings ?? new CacheStoreSettings();
+        ValidateSettings(this.settings);
 
         if (!this.StateManager.TryAddStateSerializer(new CachedItemSerializer()))
         {
@@ -65,6 +66,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         this.logger = logger;
         this.timeProvider = timeProvider;
         this.settings = settings;
+        ValidateSettings(this.settings);
     }
 
     private IReliableDictionary<string, CachedItem> CacheStore =>
@@ -72,6 +74,18 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     private IReliableDictionary<string, CacheStoreMetadata> CacheStoreMetadataDict =>
         _cacheStoreMetadata ?? throw new InvalidOperationException("Cache metadata store has not been initialized. Ensure OnOpenAsync completes before processing requests.");
+
+    private static void ValidateSettings(CacheStoreSettings settings)
+    {
+        if (settings.MaxCacheSize <= 0)
+            throw new ArgumentException($"{nameof(CacheStoreSettings.MaxCacheSize)} must be greater than zero.", nameof(settings));
+        if (settings.ByteSizeOffset < 0)
+            throw new ArgumentException($"{nameof(CacheStoreSettings.ByteSizeOffset)} must be non-negative.", nameof(settings));
+        if (settings.CachePruningInterval <= 0)
+            throw new ArgumentException($"{nameof(CacheStoreSettings.CachePruningInterval)} must be greater than zero.", nameof(settings));
+        if (string.IsNullOrWhiteSpace(settings.ListenerName))
+            throw new ArgumentException($"{nameof(CacheStoreSettings.ListenerName)} must not be empty.", nameof(settings));
+    }
 
     protected async override Task OnOpenAsync(ReplicaOpenMode openMode, CancellationToken cancellationToken)
     {
