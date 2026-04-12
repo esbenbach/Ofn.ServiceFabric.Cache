@@ -90,6 +90,28 @@ public class BaseCacheStoreServiceTest
     }
 
     [Theory, AutoMoqData]
+    public async Task GetCachedItemAsync_NullAbsoluteExpiration_ReturnsItem(
+        [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
+        [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,
+        [Frozen]Mock<IReliableDictionary<string, CacheStoreMetadata>> metadataDict,
+        [Frozen]FakeTimeProvider timeProvider,
+        [Greedy]StubCacheStoreService cacheStore)
+    {
+        var cacheValue = Encoding.UTF8.GetBytes("someValue");
+        var currentTime = new DateTime(2019, 2, 1, 1, 0, 0);
+
+        timeProvider.SetUtcNow(currentTime);
+
+        SetupInMemoryStores(stateManager, metadataDict, cacheStore);
+        SetupInMemoryStores(stateManager, cacheItemDict, cacheStore);
+
+        // No sliding or absolute expiration — item should never expire
+        await cacheStore.SetCachedItemAsync("mykey", cacheValue, null, null);
+        var result = await cacheStore.GetCachedItemAsync("mykey");
+        Assert.Equal(cacheValue, result);
+    }
+
+    [Theory, AutoMoqData]
     public async Task GetCachedItemAsync_GetItemThatDoesHaveKeyAndIsIsNotAbsoluteExpired_CachedItemReturned(
         [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Frozen]Mock<IReliableDictionary<string, CachedItem>> cacheItemDict,

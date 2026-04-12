@@ -116,7 +116,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         {
             var cacheResult = await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
-                logger?.LogTrace("Get cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
+                if (CacheEventSource.Log.IsEnabled())
+                    CacheEventSource.Log.GetCacheItem(key, Partition?.PartitionInfo.Id.ToString() ?? string.Empty);
                 return await cacheStore.TryGetValueAsync(tx, key);
             }, onRetry: onRetry, onFinalFailure: onFinalFailure);
 
@@ -125,7 +126,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                 var cachedItem = cacheResult.Value;
                 var expireTime = cachedItem.AbsoluteExpiration;
 
-                if (timeProvider.GetUtcNow() < expireTime)
+                if (expireTime == null || timeProvider.GetUtcNow() < expireTime.Value)
                 {
                     CacheMetrics.Gets.Add(1, new TagList { { "result", "hit" }, { "partition_id", _partitionIdTag } });
 
@@ -175,7 +176,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) => 
             {
-                logger?.LogTrace("Set cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
+                if (CacheEventSource.Log.IsEnabled())
+                    CacheEventSource.Log.SetCacheItem(key, Partition?.PartitionInfo.Id.ToString() ?? string.Empty);
            
                 Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
                 var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
@@ -229,7 +231,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         {
             await RetryHelper.ExecuteWithRetry(StateManager, async (tx, cancellationToken, state) =>
             {
-                logger?.LogTrace("Remove cached item called with key: {key} on partition id: {PartitionId}", key, Partition?.PartitionInfo.Id);
+                if (CacheEventSource.Log.IsEnabled())
+                    CacheEventSource.Log.RemoveCacheItem(key, Partition?.PartitionInfo.Id.ToString() ?? string.Empty);
 
                 var cacheResult = await cacheStore.TryRemoveAsync(tx, key);
                 if (cacheResult.HasValue)
@@ -303,7 +306,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                     return;
                 }
 
-                logger?.LogTrace("Size: {CurrentCacheSize}, MaxSize: {MaxCacheSize}", metadata.Value.Size, GetMaxSizeInBytes());
+                if (CacheEventSource.Log.IsEnabled())
+                    CacheEventSource.Log.PruningCycleSize(metadata.Value.Size, GetMaxSizeInBytes());
 
                 if (metadata.Value.Size > GetMaxSizeInBytes())
                 {
@@ -319,7 +323,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                     var firstCachedItem = firstItemResult.Value;
 
                     // Move item to last item if cached item is not expired
-                    if (firstCachedItem.AbsoluteExpiration > timeProvider.GetUtcNow())
+                    if (firstCachedItem.AbsoluteExpiration == null || firstCachedItem.AbsoluteExpiration.Value > timeProvider.GetUtcNow())
                     {
                         // remove cached item
                         var removeResult = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
@@ -331,11 +335,15 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
                         continueRemovingItems = addLastResult.CacheStoreMetadata.Size > GetMaxSizeInBytes();
 
+                        if (CacheEventSource.Log.IsEnabled())
+                            CacheEventSource.Log.PruningMoved(firstItemKey);
+
                         CacheMetrics.Evictions.Add(1, new TagList { { "reason", "lru" }, { "partition_id", _partitionIdTag } });
                     }
                     else  // Remove 
                     {
-                        logger?.LogTrace("Auto Removing {key}", metadata.Value.FirstCacheKey);
+                        if (CacheEventSource.Log.IsEnabled())
+                            CacheEventSource.Log.PruningEvicted(metadata.Value.FirstCacheKey!);
 
                         var result = await linkedDictionaryHelper.Remove(metadata.Value, firstCachedItem);
                         await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
