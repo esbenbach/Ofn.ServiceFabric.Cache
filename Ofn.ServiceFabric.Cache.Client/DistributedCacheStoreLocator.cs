@@ -12,7 +12,7 @@ using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Microsoft.ServiceFabric.Services.Remoting.V2.FabricTransport.Client;
 using Ofn.ServiceFabric.Cache.Abstractions;
 
-public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
+public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisposable
 {
     private const string CacheStoreProperty = "CacheStore";
 
@@ -24,19 +24,25 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
 
     private readonly string endpointName;
 
-    private readonly FabricClient fabricClient;
+    private readonly Lazy<FabricClient> _lazyFabricClient;
 
-    private ServicePartitionList _partitionList;
+    private FabricClient fabricClient => _lazyFabricClient.Value;
+
+    private ServicePartitionList? _partitionList;
+
+    private readonly SemaphoreSlim _partitionListLock = new SemaphoreSlim(1, 1);
 
     private readonly ConcurrentDictionary<Guid, ICacheStoreService> cacheStores;
+
+    private bool _disposed;
 
     public DistributedCacheStoreLocator(IOptions<ServiceFabricCacheOptions> options)
     {
         var fabricOptions = options.Value;
         this.serviceUri = fabricOptions.CacheStoreServiceUri;
         this.endpointName = fabricOptions.CacheStoreEndpointName ?? ListenerName;
-                   
-        this.fabricClient = new FabricClient();
+
+        _lazyFabricClient = new Lazy<FabricClient>(() => new FabricClient());
         this.cacheStores = new ConcurrentDictionary<Guid, ICacheStoreService>();
     }
 
@@ -45,26 +51,31 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
         // Try to locate a cache store if one is not configured
         if (serviceUri == null)
         {
-            serviceUri = await LocateCacheStoreAsync();
+            serviceUri = await LocateCacheStoreAsync().ConfigureAwait(false);
             if (serviceUri == null)
             {
                 throw new CacheStoreNotFoundException("Cache store not found in Service Fabric cluster.  Try setting the 'CacheStoreServiceUri' configuration option to the location of your cache store.");
             }
         }
 
-        var partitionInformation = await GetPartitionInformationForCacheKey(cacheKey);
+        var partitionInformation = await GetPartitionInformationForCacheKey(cacheKey).ConfigureAwait(false);
 
-        return cacheStores.GetOrAdd(partitionInformation.Id, key => {
+        return cacheStores.GetOrAdd(partitionInformation.Id, _ =>
+        {
             var info = (Int64RangePartitionInformation)partitionInformation;
             var resolvedPartition = new ServicePartitionKey(info.LowKey);
-
-            var proxyFactory = new ServiceProxyFactory((c) =>
-            {
-                return new FabricTransportServiceRemotingClientFactory();
-            });
-
-            return proxyFactory.CreateServiceProxy<ICacheStoreService>(serviceUri, resolvedPartition, Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.Default, endpointName);
+            return CreateCacheStoreProxy(serviceUri, resolvedPartition, endpointName);
         });
+    }
+
+    protected internal virtual ICacheStoreService CreateCacheStoreProxy(Uri uri, ServicePartitionKey partitionKey, string endpoint)
+    {
+        var proxyFactory = new ServiceProxyFactory(_ => new FabricTransportServiceRemotingClientFactory());
+        return proxyFactory.CreateServiceProxy<ICacheStoreService>(
+            uri,
+            partitionKey,
+            Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.Default,
+            endpoint);
     }
 
     private async Task<ServicePartitionInformation> GetPartitionInformationForCacheKey(string cacheKey)
@@ -75,14 +86,29 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
 
         if (_partitionList == null)
         {
-            _partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            await _partitionListLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_partitionList == null)
+                {
+                    _partitionList = await FetchPartitionListAsync(serviceUri).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _partitionListLock.Release();
+            }
         }
 
-        var partition = _partitionList.Single(p => ((Int64RangePartitionInformation)p.PartitionInformation).LowKey <= key && ((Int64RangePartitionInformation)p.PartitionInformation).HighKey >= key);
+        var partition = _partitionList.Single(p =>
+            ((Int64RangePartitionInformation)p.PartitionInformation).LowKey <= key &&
+            ((Int64RangePartitionInformation)p.PartitionInformation).HighKey >= key);
+
         return partition.PartitionInformation;
     }
 
-
+    protected internal virtual Task<ServicePartitionList> FetchPartitionListAsync(Uri uri)
+        => fabricClient.QueryManager.GetPartitionListAsync(uri);
 
     private async Task<Uri> LocateCacheStoreAsync()
     {
@@ -93,7 +119,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
 
             while (hasPages)
             {
-                var apps = await fabricClient.QueryManager.GetApplicationPagedListAsync(query);
+                var apps = await fabricClient.QueryManager.GetApplicationPagedListAsync(query).ConfigureAwait(false);
 
                 query.ContinuationToken = apps.ContinuationToken;
 
@@ -101,7 +127,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
 
                 foreach (var app in apps)
                 {
-                    var serviceName = await LocateCacheStoreServiceInApplicationAsync(app.ApplicationName);
+                    var serviceName = await LocateCacheStoreServiceInApplicationAsync(app.ApplicationName).ConfigureAwait(false);
                     if (serviceName != null)
                         return serviceName;
                 }
@@ -121,7 +147,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
 
             while (hasPages)
             {
-                var services = await fabricClient.QueryManager.GetServicePagedListAsync(query);
+                var services = await fabricClient.QueryManager.GetServicePagedListAsync(query).ConfigureAwait(false);
 
                 query.ContinuationToken = services.ContinuationToken;
 
@@ -129,7 +155,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
 
                 foreach (var service in services)
                 {
-                    var found = await IsCacheStore(service.ServiceName);
+                    var found = await IsCacheStore(service.ServiceName).ConfigureAwait(false);
                     if (found)
                         return service.ServiceName;
                 }
@@ -144,11 +170,22 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator
     {
         try
         {
-            var isCacheStore = await fabricClient.PropertyManager.GetPropertyAsync(serviceName, CacheStoreProperty);
+            var isCacheStore = await fabricClient.PropertyManager.GetPropertyAsync(serviceName, CacheStoreProperty).ConfigureAwait(false);
             return isCacheStore.GetValue<string>() == CacheStorePropertyValue;
         }
         catch { }
 
         return false;
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _partitionListLock.Dispose();
+            if (_lazyFabricClient.IsValueCreated)
+                _lazyFabricClient.Value.Dispose();
+            _disposed = true;
+        }
     }
 }
