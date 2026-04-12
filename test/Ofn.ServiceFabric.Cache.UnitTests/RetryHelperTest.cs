@@ -214,4 +214,24 @@ public class RetryHelperTest
             RetryHelper.ExecuteWithRetry(operation, maxAttempts: 2, initialDelay: TimeSpan.FromMilliseconds(1),
                 cancellationToken: TestContext.Current.CancellationToken));
     }
+
+    [Fact]
+    public async Task ExecuteWithRetry_CancellationDuringBackoffDelay_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        int callCount = 0;
+
+        Func<CancellationToken, object?, Task<int>> operation = (_, _) =>
+        {
+            callCount++;
+            cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+            throw new TimeoutException();
+        };
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            RetryHelper.ExecuteWithRetry(operation, initialDelay: TimeSpan.FromSeconds(30),
+                cancellationToken: cts.Token));
+
+        Assert.Equal(1, callCount);
+    }
 }
