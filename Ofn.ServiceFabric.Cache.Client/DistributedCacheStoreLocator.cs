@@ -20,7 +20,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
 
     private const string ListenerName = "CacheStoreServiceListener";
 
-    private Uri serviceUri;
+    private Uri? serviceUri;
 
     private readonly string endpointName;
 
@@ -64,7 +64,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
         {
             var info = (Int64RangePartitionInformation)partitionInformation;
             var resolvedPartition = new ServicePartitionKey(info.LowKey);
-            return CreateCacheStoreProxy(serviceUri, resolvedPartition, endpointName);
+            return CreateCacheStoreProxy(serviceUri!, resolvedPartition, endpointName);
         });
     }
 
@@ -91,7 +91,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
             {
                 if (_partitionList == null)
                 {
-                    _partitionList = await FetchPartitionListAsync(serviceUri).ConfigureAwait(false);
+                    _partitionList = await FetchPartitionListAsync(serviceUri!).ConfigureAwait(false);
                 }
             }
             finally
@@ -110,7 +110,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
     protected internal virtual Task<ServicePartitionList> FetchPartitionListAsync(Uri uri)
         => fabricClient.QueryManager.GetPartitionListAsync(uri);
 
-    private async Task<Uri> LocateCacheStoreAsync()
+    private async Task<Uri?> LocateCacheStoreAsync()
     {
         try
         {
@@ -138,7 +138,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
         return null;
     }
 
-    private async Task<Uri> LocateCacheStoreServiceInApplicationAsync(Uri applicationName)
+    private async Task<Uri?> LocateCacheStoreServiceInApplicationAsync(Uri applicationName)
     {
         try
         {

@@ -13,8 +13,8 @@ static class RetryHelper
 
     public static async Task<TResult> ExecuteWithRetry<TResult>(
         IReliableStateManager stateManager,
-        Func<ITransaction, CancellationToken, object, Task<TResult>> operation,
-        object state = null,
+        Func<ITransaction, CancellationToken, object?, Task<TResult>> operation,
+        object? state = null,
         CancellationToken cancellationToken = default,
         int maxAttempts = DefaultMaxAttempts,
         TimeSpan? initialDelay = null)
@@ -25,7 +25,7 @@ static class RetryHelper
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
 
-        Func<CancellationToken, object, Task<TResult>> wrapped = async (token, st) =>
+        Func<CancellationToken, object?, Task<TResult>> wrapped = async (token, st) =>
         {
             TResult result;
             using (var tran = stateManager.CreateTransaction())
@@ -45,13 +45,13 @@ static class RetryHelper
         };
 
         var outerResult = await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay);
-        return outerResult;
+        return outerResult!;
     }
 
     public static async Task ExecuteWithRetry(
         IReliableStateManager stateManager, 
-        Func<ITransaction, CancellationToken, object, Task> operation,
-        object state = null,
+        Func<ITransaction, CancellationToken, object?, Task> operation,
+        object? state = null,
         CancellationToken cancellationToken = default,
         int maxAttempts = DefaultMaxAttempts,
         TimeSpan? initialDelay = null)
@@ -62,7 +62,7 @@ static class RetryHelper
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
 
-        Func<CancellationToken, object, Task<object>> wrapped = async (token, st) =>
+        Func<CancellationToken, object?, Task<object?>> wrapped = async (token, st) =>
         {
             using (var tran = stateManager.CreateTransaction())
             {
@@ -83,9 +83,9 @@ static class RetryHelper
         await ExecuteWithRetry(wrapped, state, cancellationToken, maxAttempts, initialDelay);
     }
 
-    public static async Task<TResult> ExecuteWithRetry<TResult>(
-        Func<CancellationToken, object, Task<TResult>> operation,
-        object state = null,
+    public static async Task<TResult?> ExecuteWithRetry<TResult>(
+        Func<CancellationToken, object?, Task<TResult>> operation,
+        object? state = null,
         CancellationToken cancellationToken = default,
         int maxAttempts = DefaultMaxAttempts,
         TimeSpan? initialDelay = null)
@@ -95,7 +95,7 @@ static class RetryHelper
         if (initialDelay == null || initialDelay.Value < MinimumDelay)
             initialDelay = InitialDelay;
 
-        var result = default(TResult);
+        TResult? result = default;
         for (int attempts = 0; attempts < maxAttempts; attempts++)
         {
             try
