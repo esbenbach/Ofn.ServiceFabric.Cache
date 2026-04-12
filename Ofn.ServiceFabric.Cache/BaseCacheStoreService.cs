@@ -275,6 +275,13 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
+        await Task.WhenAll(
+            RunLruPruningLoopAsync(cancellationToken),
+            RunExpirationScanLoopAsync(cancellationToken));
+    }
+
+    private async Task RunLruPruningLoopAsync(CancellationToken cancellationToken)
+    {
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -287,6 +294,78 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             }
 
             await Task.Delay(TimeSpan.FromSeconds(this.settings.CachePruningInterval), cancellationToken);
+        }
+    }
+
+    private async Task RunExpirationScanLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(this.settings.ExpirationScanInterval), cancellationToken);
+
+            try
+            {
+                await RemoveExpiredCacheItemsAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger?.LogError(ex, "Unhandled exception in expiration scan loop; scan will resume after next interval.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scans the linked dictionary for expired items and removes them proactively,
+    /// independent of cache size pressure. Inspects at most
+    /// <see cref="CacheStoreSettings.ExpirationScanBatchSize"/> items per call.
+    /// </summary>
+    internal async Task RemoveExpiredCacheItemsAsync(CancellationToken cancellationToken)
+    {
+        var cacheStore = CacheStore;
+        var cacheStoreMetadata = CacheStoreMetadataDict;
+        var now = timeProvider.GetUtcNow();
+        var expiredKeys = new List<string>();
+
+        // Phase 1: read-only walk of the linked list to collect expired keys.
+        await RetryHelper.ExecuteWithRetry(StateManager, async (tx, ct, _) =>
+        {
+            expiredKeys.Clear();
+
+            var metadataResult = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey);
+            if (!metadataResult.HasValue || metadataResult.Value.FirstCacheKey == null)
+                return;
+
+            var currentKey = metadataResult.Value.FirstCacheKey;
+            var inspected = 0;
+
+            while (currentKey != null && inspected < this.settings.ExpirationScanBatchSize)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var itemResult = await cacheStore.TryGetValueAsync(tx, currentKey);
+                if (!itemResult.HasValue)
+                    break; // linked list integrity issue; stop safely
+
+                var item = itemResult.Value;
+                if (item.AbsoluteExpiration < now)
+                    expiredKeys.Add(currentKey);
+
+                currentKey = item.AfterCacheKey;
+                inspected++;
+            }
+
+            logger?.LogDebug("Expiration scan on partition {PartitionId}: inspected {Inspected} item(s), found {Expired} expired.",
+                _partitionIdTag, inspected, expiredKeys.Count);
+        });
+
+        // Phase 2: remove each expired key via the existing single-item retried write path.
+        foreach (var key in expiredKeys)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            logger?.LogTrace("Expiration scan removing expired key: {Key} on partition {PartitionId}", key, _partitionIdTag);
+            await RemoveCachedItemAsync(key);
+            CacheMetrics.Evictions.Add(1, new TagList { { "reason", "expired" }, { "partition_id", _partitionIdTag } });
         }
     }
 

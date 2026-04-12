@@ -31,4 +31,19 @@ public class CacheStoreSettings
     /// </remarks>
     [Range(1, int.MaxValue, ErrorMessage = "CachePruningInterval must be greater than zero.")]
     public int CachePruningInterval { get; set; } = 15;
+
+    /// <summary>
+    /// How often (in seconds) the service scans for and removes expired items regardless of cache size pressure.
+    /// Defaults to 30 seconds.
+    /// </summary>
+    [Range(1, int.MaxValue, ErrorMessage = "ExpirationScanInterval must be greater than zero.")]
+    public int ExpirationScanInterval { get; set; } = 30;
+
+    /// <summary>
+    /// Maximum number of items inspected per expiry scan cycle.
+    /// Limits the per-cycle cost when many items are present; any remaining items are handled in the next cycle.
+    /// Defaults to 500.
+    /// </summary>
+    [Range(1, int.MaxValue, ErrorMessage = "ExpirationScanBatchSize must be greater than zero.")]
+    public int ExpirationScanBatchSize { get; set; } = 500;
 }
