@@ -114,8 +114,10 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
             var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, this.settings.ByteSizeOffset);
 
-            var cacheStoreInfo = (await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update)).Value ?? new CacheStoreMetadata(0, null, null);
-            var existingCacheItem = (await getCacheItem(key)).Value;
+            var cacheStoreInfoResult = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update);
+            var cacheStoreInfo = cacheStoreInfoResult.HasValue ? cacheStoreInfoResult.Value : new CacheStoreMetadata(0, null, null);
+            var existingCacheItemResult = await getCacheItem(key);
+            var existingCacheItem = existingCacheItemResult.HasValue ? existingCacheItemResult.Value : null;
             var cachedItem = ApplyAbsoluteExpiration(existingCacheItem, absoluteExpiration) ?? new CachedItem(value, null, null, slidingExpiration, absoluteExpiration);
 
             // empty linked dictionary
@@ -159,7 +161,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                 Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem = async (string cacheKey) => await cacheStore.TryGetValueAsync(tx, cacheKey, LockMode.Update);
                 var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
 
-                var cacheStoreInfo = (await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update)).Value ?? new CacheStoreMetadata(0, null, null);
+                var cacheStoreInfoResult = await cacheStoreMetadata.TryGetValueAsync(tx, CacheStoreConstants.CacheStoreMetadataKey, LockMode.Update);
+                var cacheStoreInfo = cacheStoreInfoResult.HasValue ? cacheStoreInfoResult.Value : new CacheStoreMetadata(0, null, null);
                 var result = await linkedDictionaryHelper.Remove(cacheStoreInfo, cacheResult.Value);
 
                 await ApplyChanges(tx, cacheStore, cacheStoreMetadata, result);
@@ -223,7 +226,10 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                     var linkedDictionaryHelper = new LinkedDictionaryHelper(getCacheItem, ByteSizeOffset);
 
                     var firstItemKey = metadata.Value.FirstCacheKey;
-                    var firstCachedItem = (await getCacheItem(firstItemKey)).Value;
+                    var firstItemResult = await getCacheItem(firstItemKey);
+                    if (!firstItemResult.HasValue)
+                        throw new InvalidOperationException($"Cache item '{firstItemKey}' was expected but not found in the cache store.");
+                    var firstCachedItem = firstItemResult.Value;
 
                     // Move item to last item if cached item is not expired
                     if (firstCachedItem.AbsoluteExpiration > timeProvider.GetUtcNow())

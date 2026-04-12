@@ -37,7 +37,10 @@ public class LinkedDictionaryHelper
         // first item in linked dictionary
         if (before == null)
         {
-            var afterCachedItem = (await _getCacheItem(after)).Value;
+            var afterResult = await _getCacheItem(after);
+            if (!afterResult.HasValue)
+                throw new InvalidOperationException($"Cache item '{after}' was expected but not found in the cache store.");
+            var afterCachedItem = afterResult.Value;
             var newCachedItem = new Dictionary<string, CachedItem> { { after, new CachedItem(afterCachedItem.Value, null, afterCachedItem.AfterCacheKey, afterCachedItem.SlidingExpiration, afterCachedItem.AbsoluteExpiration) } };
             return new LinkedDictionaryItemsChanged(newCachedItem, new CacheStoreMetadata(size, after, cacheStoreMetadata.LastCacheKey));
         }
@@ -45,15 +48,25 @@ public class LinkedDictionaryHelper
         // last item in linked dictionary
         if (after == null)
         {
-            var beforeCachedItem = (await _getCacheItem(before)).Value;
+            var beforeResult = await _getCacheItem(before);
+            if (!beforeResult.HasValue)
+                throw new InvalidOperationException($"Cache item '{before}' was expected but not found in the cache store.");
+            var beforeCachedItem = beforeResult.Value;
             var newCachedItem = new Dictionary<string, CachedItem> { { before, new CachedItem(beforeCachedItem.Value, beforeCachedItem.BeforeCacheKey, null, beforeCachedItem.SlidingExpiration, beforeCachedItem.AbsoluteExpiration) } };
             return new LinkedDictionaryItemsChanged(newCachedItem, new CacheStoreMetadata(size, cacheStoreMetadata.FirstCacheKey, before));
         }
 
         // middle item in linked dictionary
 
-        var beforeItem = (await _getCacheItem(before)).Value;
-        var afterItem = (await _getCacheItem(after)).Value;
+        var beforeItemResult = await _getCacheItem(before);
+        if (!beforeItemResult.HasValue)
+            throw new InvalidOperationException($"Cache item '{before}' was expected but not found in the cache store.");
+        var beforeItem = beforeItemResult.Value;
+
+        var afterItemResult = await _getCacheItem(after);
+        if (!afterItemResult.HasValue)
+            throw new InvalidOperationException($"Cache item '{after}' was expected but not found in the cache store.");
+        var afterItem = afterItemResult.Value;
 
         var metadata = new CacheStoreMetadata(size, cacheStoreMetadata.FirstCacheKey, cacheStoreMetadata.LastCacheKey);
 
@@ -74,7 +87,10 @@ public class LinkedDictionaryHelper
         // set current last item to be the second from last
         if (cacheStoreMetadata.LastCacheKey != null)
         {
-            var currentLastCacheItem = (await _getCacheItem(cacheStoreMetadata.LastCacheKey)).Value;
+            var currentLastResult = await _getCacheItem(cacheStoreMetadata.LastCacheKey);
+            if (!currentLastResult.HasValue)
+                throw new InvalidOperationException($"Cache item '{cacheStoreMetadata.LastCacheKey}' was expected but not found in the cache store.");
+            var currentLastCacheItem = currentLastResult.Value;
             firstCacheKey = cacheStoreMetadata.FirstCacheKey;
             cachedDictionary.Add(cacheStoreMetadata.LastCacheKey, new CachedItem(currentLastCacheItem.Value, currentLastCacheItem.BeforeCacheKey, cacheItemKey, currentLastCacheItem.SlidingExpiration, currentLastCacheItem.AbsoluteExpiration));
         }

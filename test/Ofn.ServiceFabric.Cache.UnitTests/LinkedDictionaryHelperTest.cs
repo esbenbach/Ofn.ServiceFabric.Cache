@@ -161,6 +161,39 @@ public class LinkedDictionaryHelperTest
     }
 
     [Theory, AutoMoqData]
+    async Task Remove_KeyNotFoundInStore_ThrowsInvalidOperationException(
+        [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
+        CacheStoreMetadata cacheStoreMetadata,
+        LinkedDictionaryHelper linkedDictionaryHelper)
+    {
+        var cachedValue = Encoding.UTF8.GetBytes("some value");
+        var afterKey = "afterKey";
+        var itemToRemove = new CachedItem(cachedValue, null, afterKey);
+
+        getCacheItem.Setup(mock => mock(It.IsAny<string>())).ReturnsAsync(new ConditionalValue<CachedItem>());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => linkedDictionaryHelper.Remove(cacheStoreMetadata, itemToRemove));
+        Assert.Contains(afterKey, ex.Message);
+    }
+
+    [Theory, AutoMoqData]
+    async Task AddLast_BeforeKeyNotFoundInStore_ThrowsInvalidOperationException(
+        [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
+        CachedItem newCachedItem,
+        LinkedDictionaryHelper linkedDictionaryHelper)
+    {
+        var lastKey = "existingLastKey";
+        var cacheStoreMetadata = new CacheStoreMetadata(0, "firstKey", lastKey);
+        var newItemKey = "NewLastItem";
+        var cachedValue = Encoding.UTF8.GetBytes("some value");
+
+        getCacheItem.Setup(mock => mock(It.IsAny<string>())).ReturnsAsync(new ConditionalValue<CachedItem>());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => linkedDictionaryHelper.AddLast(cacheStoreMetadata, newItemKey, newCachedItem, cachedValue));
+        Assert.Contains(lastKey, ex.Message);
+    }
+
+    [Theory, AutoMoqData]
     async Task Remove_MiddleItemInLinkedDictionary_ItemBeforeAndAfterNeedTobeLinked(
         [Frozen]Mock<Func<string, Task<ConditionalValue<CachedItem>>>> getCacheItem,
         CacheStoreMetadata cacheStoreMetadata,
