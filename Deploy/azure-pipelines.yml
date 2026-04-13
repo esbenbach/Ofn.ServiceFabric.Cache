@@ -1,0 +1,60 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  projectPaths: '**/Ofn.ServiceFabric.Cache*.csproj'
+  buildConfiguration: 'Release'
+
+steps:
+- task: UseDotNet@2
+  displayName: "Install .NET SDK 10.x"
+  inputs:
+    packageType: 'sdk'
+    version: '10.x'
+    includePreviewVersions: true
+
+- task: DotNetCoreCLI@2
+  displayName: "dotnet restore"
+  inputs:
+    command: restore
+    projects: '$(projectPaths)'
+
+- task: DotNetCoreCLI@2
+  displayName: "dotnet build"
+  inputs:
+    command: build
+    projects: '$(projectPaths)'
+    arguments: '--configuration $(buildConfiguration) --no-restore'
+
+- task: DotNetCoreCLI@2
+  displayName: "dotnet test"
+  inputs:
+    command: test
+    projects: '**/test/**/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory $(Agent.TempDirectory)/TestResults'
+    publishTestResults: false
+
+- task: PublishTestResults@2
+  displayName: "Publish test results"
+  condition: always()
+  inputs:
+    testResultsFormat: VSTest
+    testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
+    failTaskOnFailedTests: true
+
+- task: PublishCodeCoverageResults@2
+  displayName: "Publish code coverage"
+  condition: always()
+  inputs:
+    summaryFileLocation: '$(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml'
+
+- task: DotNetCoreCLI@2
+  displayName: "dotnet pack"
+  inputs:
+    command: pack
+    packagesToPack: '$(projectPaths)'
+    nobuild: true
+    arguments: '--configuration $(buildConfiguration)'

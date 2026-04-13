@@ -1,25 +1,32 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.2</TargetFramework>
-    <LangVersion>Latest</LangVersion>
     <IsPackable>false</IsPackable>
+    <OutputType>exe</OutputType>
   </PropertyGroup>
 
-  <Import Project="../../Shared.targets" />
+
   
   <ItemGroup>
-    <PackageReference Include="AutoFixture.AutoMoq" Version="4.11.0" />
-    <PackageReference Include="AutoFixture.Xunit2" Version="4.11.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
-    <PackageReference Include="Moq" Version="4.13.0" />
-    <PackageReference Include="xunit" Version="2.4.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.0" />
+    <PackageReference Include="AutoFixture.AutoMoq" />
+    <PackageReference Include="AutoFixture.Xunit3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Ofn.ServiceFabric.Cache.Abstractions\Ofn.ServiceFabric.Cache.Abstractions.csproj" />
     <ProjectReference Include="..\..\Ofn.ServiceFabric.Cache\Ofn.ServiceFabric.Cache.csproj" />
+    <ProjectReference Include="..\..\Ofn.ServiceFabric.Cache.Client\Ofn.ServiceFabric.Cache.Client.csproj" />
   </ItemGroup>
 
 </Project>

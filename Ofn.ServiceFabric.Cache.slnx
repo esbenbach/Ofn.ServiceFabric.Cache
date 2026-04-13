@@ -1,0 +1,43 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Hosting/">
+    <Project Path="CacheConsumer/CacheConsumer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="CachingService/CachingService.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="Ofn.ServiceFabric.Cache.Hosting/Ofn.ServiceFabric.Cache.Hosting.sfproj">
+      <Build />
+      <Deploy />
+    </Project>
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="azure-pipelines.yml" />
+    <File Path="Deploy/Deploy-SFApp.ps1" />
+    <File Path="Deploy/Package-SFApp.ps1" />
+    <File Path="Deploy/Remove-SFApp.ps1" />
+    <File Path="Deploy/SFApp.Common.psm1" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="test/Ofn.ServiceFabric.Cache.UnitTests/Ofn.ServiceFabric.Cache.UnitTests.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
+  </Folder>
+  <Project Path="Benchmark/Ofn.ServiceFabric.Cache.Benchmarks.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="Ofn.ServiceFabric.Cache.Abstractions/Ofn.ServiceFabric.Cache.Abstractions.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="Ofn.ServiceFabric.Cache.Client/Ofn.ServiceFabric.Cache.Client.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="Ofn.ServiceFabric.Cache/Ofn.ServiceFabric.Cache.csproj">
+    <Platform Project="x64" />
+  </Project>
+</Solution>

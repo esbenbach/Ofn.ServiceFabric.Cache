@@ -1,12 +1,2 @@
-﻿using System;
-
-namespace Benchmark
-{
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            Console.WriteLine("Hello World!");
-        }
-    }
-}
+using BenchmarkDotNet.Running;
+BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);

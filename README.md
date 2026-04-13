@@ -68,6 +68,17 @@ Refer to the `CachingService` project for a more complete example.
 
 Refer to the `CacheConsumer` project for a more complete example.
 
+### Using HybridCache (.NET 10+)
+
+`HybridCache` (two-level L1/L2 cache introduced in .NET 9) can use `IDistributedCache` as its distributed backing store. Since this library provides a full `IDistributedCache` implementation targeting .NET 10, no additional glue code is required.
+
+See **[docs/hybrid-cache.md](docs/hybrid-cache.md)** for a full setup guide and usage examples.
+
+### Telemetry
+
+Both the cache store and client libraries expose `System.Diagnostics.Metrics` counters and histograms compatible with OpenTelemetry and `dotnet-counters`.
+
+See **[docs/telemetry.md](docs/telemetry.md)** for the full metrics reference.
 
 ## Why not just contribute to SoCreate Distributed Cache?
 

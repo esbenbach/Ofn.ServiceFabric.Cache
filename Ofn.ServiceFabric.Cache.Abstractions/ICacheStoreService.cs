@@ -6,7 +6,7 @@
 
     public interface ICacheStoreService : IService
     {
-        Task<byte[]> GetCachedItemAsync(string key);
+        Task<byte[]?> GetCachedItemAsync(string key);
 
         Task SetCachedItemAsync(string key, byte[] value, TimeSpan? slidingExpiration, DateTimeOffset? absoluteExpiration);
 

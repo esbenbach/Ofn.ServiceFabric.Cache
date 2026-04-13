@@ -1,37 +1,26 @@
-﻿namespace CacheConsumer
+﻿namespace CacheConsumer;
+
+using MemoryPack;
+
+public static class SerializationExtension
 {
-    using System.IO;
-    using System.Runtime.Serialization.Formatters.Binary;
-
-    public static class SerializationExtension
+    public static byte[]? ToByteArray<T>(this T obj)
     {
-        public static byte[] ToByteArray(this object obj)
+        if (obj is null)
         {
-            if (obj == null)
-            {
-                return null;
-            }
-
-            var binaryFormatter = new BinaryFormatter();
-            using (var memoryStream = new MemoryStream())
-            {
-                binaryFormatter.Serialize(memoryStream, obj);
-                return memoryStream.ToArray();
-            }
+            return null;
         }
 
-        public static T FromByteArray<T>(this byte[] byteArray) where T : class
-        {
-            if (byteArray == null)
-            {
-                return default(T);
-            }
+        return MemoryPackSerializer.Serialize(obj);
+    }
 
-            var binaryFormatter = new BinaryFormatter();
-            using (var memoryStream = new MemoryStream(byteArray))
-            {
-                return binaryFormatter.Deserialize(memoryStream) as T;
-            }
+    public static T? FromByteArray<T>(this byte[] byteArray) where T : class
+    {
+        if (byteArray == null)
+        {
+            return default;
         }
+
+        return MemoryPackSerializer.Deserialize<T>(byteArray);
     }
 }

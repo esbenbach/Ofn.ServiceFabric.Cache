@@ -1,11 +1,10 @@
-﻿namespace Ofn.ServiceFabric.Cache
+﻿namespace Ofn.ServiceFabric.Cache;
+
+internal static class CacheStoreConstants
 {
-    internal static class CacheStoreConstants
-    {
-        internal const string CacheStoreName = "CacheStore";
+    internal const string CacheStoreName = "CacheStore";
 
-        internal const string CacheStoreMetadataName = "CacheStoreMetadata";
+    internal const string CacheStoreMetadataName = "CacheStoreMetadata";
 
-        internal const string CacheStoreMetadataKey = "CacheStoreMetadata";
-    }
+    internal const string CacheStoreMetadataKey = "CacheStoreMetadata";
 }
