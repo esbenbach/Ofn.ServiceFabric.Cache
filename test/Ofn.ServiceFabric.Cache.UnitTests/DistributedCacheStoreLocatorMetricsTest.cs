@@ -1,6 +1,7 @@
 namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Fabric;
@@ -25,10 +26,10 @@ public class DistributedCacheStoreLocatorMetricsTest
     // Listener helper
     // ──────────────────────────────────────────────────────────────────────────
 
-    private static (MeterListener Listener, List<(string Name, object Value, KeyValuePair<string, object?>[] Tags)> Recordings)
+    private static (MeterListener Listener, ConcurrentBag<(string Name, object Value, KeyValuePair<string, object?>[] Tags)> Recordings)
         CreateListener()
     {
-        var recordings = new List<(string Name, object Value, KeyValuePair<string, object?>[] Tags)>();
+        var recordings = new ConcurrentBag<(string Name, object Value, KeyValuePair<string, object?>[] Tags)>();
         var listener = new MeterListener();
 
         listener.InstrumentPublished = (instrument, l) =>
@@ -150,7 +151,7 @@ public class DistributedCacheStoreLocatorMetricsTest
         var (listener, recordings) = CreateListener();
         using (listener)
         {
-            await locator.GetCacheStoreProxy("anyKey");
+            await locator.GetCacheStoreProxy("anyKey", TestContext.Current.CancellationToken);
 
             // cache.client.discovery.duration with status=success
             Assert.Contains(recordings, r =>
@@ -175,10 +176,10 @@ public class DistributedCacheStoreLocatorMetricsTest
         using (listener)
         {
             await Assert.ThrowsAsync<CacheStoreNotFoundException>(
-                () => locator.GetCacheStoreProxy("anyKey"));
+                () => locator.GetCacheStoreProxy("anyKey", TestContext.Current.CancellationToken));
 
             // cache.client.discovery.failures counter incremented
-            var failure = recordings.Find(r => r.Name == "cache.client.discovery.failures");
+            var failure = recordings.FirstOrDefault(r => r.Name == "cache.client.discovery.failures");
             Assert.NotEqual(default, failure);
             Assert.Equal(1L, (long)failure.Value);
 
@@ -209,7 +210,7 @@ public class DistributedCacheStoreLocatorMetricsTest
         var (listener, recordings) = CreateListener();
         using (listener)
         {
-            await locator.GetCacheStoreProxy("anyKey");
+            await locator.GetCacheStoreProxy("anyKey", TestContext.Current.CancellationToken);
 
             // cache.client.partition_list.refresh.duration must be recorded
             Assert.Contains(recordings, r =>

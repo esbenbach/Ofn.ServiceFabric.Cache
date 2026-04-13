@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Optimize>true</Optimize>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="ServiceFabric.Mocks" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ofn.ServiceFabric.Cache\Ofn.ServiceFabric.Cache.csproj" />
+    <ProjectReference Include="..\Ofn.ServiceFabric.Cache.Client\Ofn.ServiceFabric.Cache.Client.csproj" />
+    <ProjectReference Include="..\Ofn.ServiceFabric.Cache.Abstractions\Ofn.ServiceFabric.Cache.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

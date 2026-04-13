@@ -4,7 +4,7 @@ using MemoryPack;
 
 public static class SerializationExtension
 {
-    public static byte[] ToByteArray<T>(this T obj)
+    public static byte[]? ToByteArray<T>(this T obj)
     {
         if (obj is null)
         {
@@ -14,7 +14,7 @@ public static class SerializationExtension
         return MemoryPackSerializer.Serialize(obj);
     }
 
-    public static T FromByteArray<T>(this byte[] byteArray) where T : class
+    public static T? FromByteArray<T>(this byte[] byteArray) where T : class
     {
         if (byteArray == null)
         {

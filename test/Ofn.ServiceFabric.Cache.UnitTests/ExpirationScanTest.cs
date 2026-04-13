@@ -99,7 +99,7 @@ public class ExpirationScanTest
         var metadata = SetupInMemoryStores(stateManager, metadataDict, cacheStore);
 
         // No items set — metadata dictionary is empty
-        await cacheStore.RemoveExpiredCacheItemsPublic();
+        await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
         Assert.Empty(metadata);
     }
@@ -130,7 +130,7 @@ public class ExpirationScanTest
 
         Assert.Equal(3, cachedItems.Count);
 
-        await cacheStore.RemoveExpiredCacheItemsPublic();
+        await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
         Assert.Empty(cachedItems);
     }
@@ -160,7 +160,7 @@ public class ExpirationScanTest
 
         Assert.Equal(2, cachedItems.Count);
 
-        await cacheStore.RemoveExpiredCacheItemsPublic();
+        await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, cachedItems.Count);
     }
@@ -189,7 +189,7 @@ public class ExpirationScanTest
         await cacheStore.SetCachedItemAsync("expired2", value, null, now.AddSeconds(-1));
         await cacheStore.SetCachedItemAsync("live2",    value, null, now.AddMinutes(10));
 
-        await cacheStore.RemoveExpiredCacheItemsPublic();
+        await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
         Assert.False(cachedItems.ContainsKey("expired1"));
         Assert.False(cachedItems.ContainsKey("expired2"));
@@ -226,7 +226,7 @@ public class ExpirationScanTest
         await cacheStore.SetCachedItemAsync("key2", value, null, now.AddSeconds(-1));
         await cacheStore.SetCachedItemAsync("key3", value, null, now.AddSeconds(-1));
 
-        await cacheStore.RemoveExpiredCacheItemsPublic();
+        await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
         Assert.Empty(cachedItems);
     }
@@ -261,13 +261,13 @@ public class ExpirationScanTest
         await cacheStore.SetCachedItemAsync("key3", value, null, now.AddSeconds(-1));
         await cacheStore.SetCachedItemAsync("key4", value, null, now.AddSeconds(-1));
 
-        await cacheStore.RemoveExpiredCacheItemsPublic();
+        await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
         // After one cycle: 2 removed, 2 remain
         Assert.Equal(2, cachedItems.Count);
 
         // Second cycle removes the rest
-        await cacheStore.RemoveExpiredCacheItemsPublic();
+        await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
         Assert.Empty(cachedItems);
     }
@@ -327,7 +327,7 @@ public class ExpirationScanTest
         var (listener, recordings) = CreateEvictionListener();
         using (listener)
         {
-            await cacheStore.RemoveExpiredCacheItemsPublic();
+            await cacheStore.RemoveExpiredCacheItemsPublic(TestContext.Current.CancellationToken);
 
             var evictions = recordings.FindAll(r =>
                 r.Name == "cache.evictions" &&

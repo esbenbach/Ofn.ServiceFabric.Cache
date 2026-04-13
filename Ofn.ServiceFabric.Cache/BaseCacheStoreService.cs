@@ -75,6 +75,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         this.timeProvider = timeProvider;
         this.settings = settings;
         ValidateSettings(this.settings);
+        // partitionCount defaults to 1; OnOpenAsync updates it with the real count in production.
+        _maxSizeBytesPerPartition = (settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
     }
 
     private IReliableDictionary<string, CachedItem> CacheStore =>

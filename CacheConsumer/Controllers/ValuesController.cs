@@ -1,9 +1,5 @@
 ﻿namespace CacheConsumer.Controllers;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -22,15 +18,15 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<string>>> Get()
     {
-        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
-        return values ?? new List<string>();
+        var values = ( await this.cache.GetAsync("Values") )?.FromByteArray<List<string>>();
+        return values ?? [];
     }
 
     // GET api/values/5
     [HttpGet("{id}")]
     public async Task<ActionResult<string>> Get(int id)
     {
-        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
+        var values = ( await this.cache.GetAsync("Values") )?.FromByteArray<List<string>>();
         if (values?.Count > id+1)
         {
             return values.ElementAt(id);
@@ -43,25 +39,25 @@ public class ValuesController : ControllerBase
     [HttpPost]
     public async Task Post([FromBody] string value)
     {
-        var values = (await this.cache.GetAsync("Values")).FromByteArray<List<string>>();
+        var values = (await this.cache.GetAsync("Values"))?.FromByteArray<List<string>>();
         if (values == null)
         {
-            values = new List<string>();
+            values = [];
         }
 
         values.Add(value);
-        await this.cache.SetAsync("Values", values.ToByteArray());
+        await this.cache.SetAsync("Values", values.ToByteArray()!);
     }
 
     // PUT api/values/5
     [HttpPut("{id}")]
     public async Task Put(int id, [FromBody] string value)
     {
-        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
-        if (values?.Count() > id+1)
+        var values = ( await this.cache.GetAsync("Values") )?.FromByteArray<List<string>>();
+        if (values?.Count > id + 1)
         {
             values[id] = value;
-            await this.cache.SetAsync("Values", values.ToByteArray());
+            await this.cache.SetAsync("Values", values.ToByteArray()!);
         }
     }
 
@@ -69,11 +65,11 @@ public class ValuesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task Delete(int id)
     {
-        var values = ( await this.cache.GetAsync("Values") ).FromByteArray<List<string>>();
-        if (values?.Count() > id+1)
+        var values = ( await this.cache.GetAsync("Values") )?.FromByteArray<List<string>>();
+        if (values?.Count > id + 1)
         {
             values.RemoveAt(id);
-            await this.cache.SetAsync("Values", values.ToByteArray());
+            await this.cache.SetAsync("Values", values.ToByteArray()!);
         }
     }
 }

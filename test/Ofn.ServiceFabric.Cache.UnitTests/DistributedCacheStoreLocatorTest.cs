@@ -67,7 +67,7 @@ public class DistributedCacheStoreLocatorTest
             _ => Task.FromResult(partitionList),
             (_, _) => expectedProxy);
 
-        var result = await locator.GetCacheStoreProxy("anyKey");
+        var result = await locator.GetCacheStoreProxy("anyKey", TestContext.Current.CancellationToken);
 
         Assert.Same(expectedProxy, result);
     }
@@ -82,7 +82,7 @@ public class DistributedCacheStoreLocatorTest
             Options.Create(new ServiceFabricCacheOptions { CacheStoreServiceUri = new Uri("fabric:/test/cache") }),
             _ => Task.FromResult(partitionList));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => locator.GetCacheStoreProxy("anyKey"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => locator.GetCacheStoreProxy("anyKey", TestContext.Current.CancellationToken));
     }
 
     // Creates a ServicePartitionList containing StatefulServicePartitions with Int64 range info.

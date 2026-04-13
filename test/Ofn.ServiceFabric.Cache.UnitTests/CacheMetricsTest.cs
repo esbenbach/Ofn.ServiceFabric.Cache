@@ -1,6 +1,7 @@
 namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Text;
@@ -31,10 +32,10 @@ public class CacheMetricsTest
     /// the listener (for disposal) and the recording list.
     /// The listener is already started when returned.
     /// </summary>
-    private static (MeterListener Listener, List<(string Name, object Value, KeyValuePair<string, object?>[] Tags)> Recordings)
+    private static (MeterListener Listener, ConcurrentBag<(string Name, object Value, KeyValuePair<string, object?>[] Tags)> Recordings)
         CreateListener()
     {
-        var recordings = new List<(string Name, object Value, KeyValuePair<string, object?>[] Tags)>();
+        var recordings = new ConcurrentBag<(string Name, object Value, KeyValuePair<string, object?>[] Tags)>();
         var listener = new MeterListener();
 
         listener.InstrumentPublished = (instrument, l) =>
@@ -136,7 +137,7 @@ public class CacheMetricsTest
             Assert.NotNull(result);
 
             // cache.gets with result=hit must be recorded
-            var hit = recordings.Find(r =>
+            var hit = recordings.FirstOrDefault(r =>
                 r.Name == "cache.gets" && HasTag(r.Tags, "result", "hit"));
             Assert.NotEqual(default, hit);
             Assert.Equal(1L, (long)hit.Value);
@@ -171,7 +172,7 @@ public class CacheMetricsTest
 
             Assert.Null(result);
 
-            var miss = recordings.Find(r =>
+            var miss = recordings.FirstOrDefault(r =>
                 r.Name == "cache.gets" && HasTag(r.Tags, "result", "miss"));
             Assert.NotEqual(default, miss);
             Assert.Equal(1L, (long)miss.Value);
@@ -208,7 +209,7 @@ public class CacheMetricsTest
 
             Assert.Null(result);
 
-            var expired = recordings.Find(r =>
+            var expired = recordings.FirstOrDefault(r =>
                 r.Name == "cache.gets" && HasTag(r.Tags, "result", "expired"));
             Assert.NotEqual(default, expired);
             Assert.Equal(1L, (long)expired.Value);
@@ -244,7 +245,7 @@ public class CacheMetricsTest
                 r.Name == "cache.operation.duration" && HasTag(r.Tags, "operation", "set"));
 
             // cache.item.size records the byte array length
-            var sizeRec = recordings.Find(r => r.Name == "cache.item.size");
+            var sizeRec = recordings.FirstOrDefault(r => r.Name == "cache.item.size");
             Assert.NotEqual(default, sizeRec);
             Assert.Equal((long)payload.Length, (long)sizeRec.Value);
         }
@@ -302,7 +303,7 @@ public class CacheMetricsTest
         {
             await cacheStore.RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize();
 
-            var cycle = recordings.Find(r => r.Name == "cache.pruning.cycles");
+            var cycle = recordings.FirstOrDefault(r => r.Name == "cache.pruning.cycles");
             Assert.NotEqual(default, cycle);
             Assert.Equal(1L, (long)cycle.Value);
             Assert.Contains(cycle.Tags, t => t.Key == "partition_id");
@@ -347,7 +348,7 @@ public class CacheMetricsTest
         {
             await cacheStore.RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize();
 
-            var expiredEviction = recordings.Find(r =>
+            var expiredEviction = recordings.FirstOrDefault(r =>
                 r.Name == "cache.evictions" && HasTag(r.Tags, "reason", "expired"));
             Assert.NotEqual(default, expiredEviction);
             Assert.Equal(1L, (long)expiredEviction.Value);
@@ -394,7 +395,7 @@ public class CacheMetricsTest
         {
             await cacheStore.RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize();
 
-            var lruEviction = recordings.Find(r =>
+            var lruEviction = recordings.FirstOrDefault(r =>
                 r.Name == "cache.evictions" && HasTag(r.Tags, "reason", "lru"));
             Assert.NotEqual(default, lruEviction);
             Assert.Equal(1L, (long)lruEviction.Value);
