@@ -22,7 +22,7 @@
         <PackageProjectUrl>https://github.com/esbenbach/Ofn.ServiceFabric.Cache</PackageProjectUrl>
         <RepositoryType>git</RepositoryType>
         <Copyright></Copyright>
-        <Version>0.1.0-alpha1</Version>    
+        <Version>0.0.0-local</Version>
     </PropertyGroup>
 
 </Project>
