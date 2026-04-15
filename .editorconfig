@@ -10,5 +10,5 @@ insert_final_newline = true
 
 # Silence missing-XML-doc warnings in test and benchmark projects.
 # These projects are not published as NuGet packages and do not require public API documentation.
-[{test,Benchmark}/**/*.cs]
+[{test,Benchmark}/**.cs]
 dotnet_diagnostic.CS1591.severity = none
