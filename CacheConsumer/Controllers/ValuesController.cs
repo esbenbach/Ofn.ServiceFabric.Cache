@@ -37,7 +37,7 @@ public class ValuesController : ControllerBase
     public async Task<ActionResult<string>> Get(int id)
     {
         var values = ( await this.cache.GetAsync("Values") )?.FromByteArray<List<string>>();
-        if (values?.Count > id+1)
+        if (id < values?.Count)
         {
             return values.ElementAt(id);
         }
@@ -69,7 +69,7 @@ public class ValuesController : ControllerBase
     public async Task Put(int id, [FromBody] string value)
     {
         var values = ( await this.cache.GetAsync("Values") )?.FromByteArray<List<string>>();
-        if (values?.Count > id + 1)
+        if (id < values?.Count)
         {
             values[id] = value;
             await this.cache.SetAsync("Values", values.ToByteArray()!);
@@ -83,7 +83,7 @@ public class ValuesController : ControllerBase
     public async Task Delete(int id)
     {
         var values = ( await this.cache.GetAsync("Values") )?.FromByteArray<List<string>>();
-        if (values?.Count > id + 1)
+        if (id < values?.Count)
         {
             values.RemoveAt(id);
             await this.cache.SetAsync("Values", values.ToByteArray()!);
