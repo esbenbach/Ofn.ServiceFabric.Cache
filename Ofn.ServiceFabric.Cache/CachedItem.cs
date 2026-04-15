@@ -5,7 +5,7 @@ using System;
 using System.IO;
 
 /// <summary>
-/// Immutable value object stored in the cache Reliable Dictionary, carrying the payload and LRU linked-list pointers.
+/// Value object stored in the cache Reliable Dictionary, carrying the payload and LRU linked-list pointers.
 /// </summary>
 public sealed class CachedItem
 {
