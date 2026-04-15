@@ -11,6 +11,10 @@ using Microsoft.ServiceFabric.Services.Remoting.V2.FabricTransport.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
 using Ofn.ServiceFabric.Cache.Abstractions;
 
+/// <summary>
+/// Abstract base for a Service Fabric stateful service that hosts a distributed cache in Reliable Dictionaries,
+/// with LRU eviction ordering and configurable size limits.
+/// </summary>
 public abstract class BaseCacheStoreService : StatefulService, ICacheStoreService
 {
     private const int BytesInMegabyte = 1048576; // 1024 * 1024
@@ -44,9 +48,18 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     private ObservableGauge<long>? _sizeGauge;
     private ObservableGauge<long>? _sizeLimitGauge;
 
+    /// <summary>The Reliable Dictionary storing cached items, keyed by cache key.</summary>
     protected IReliableDictionary<string, CachedItem>? _cacheStore;
+
+    /// <summary>The Reliable Dictionary storing per-partition LRU metadata.</summary>
     protected IReliableDictionary<string, CacheStoreMetadata>? _cacheStoreMetadata;
 
+    /// <summary>
+    /// Initializes a new cache store service with optional settings and logger.
+    /// </summary>
+    /// <param name="context">The Service Fabric stateful service context.</param>
+    /// <param name="settings">Optional cache store settings; defaults are used when <c>null</c>.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings? settings = null, ILogger<ICacheStoreService>? logger = null)
         : base(context)
     {
@@ -67,6 +80,14 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         }
     }
 
+    /// <summary>
+    /// Initializes a new cache store service with an explicit state manager and time provider, intended for unit testing.
+    /// </summary>
+    /// <param name="context">The Service Fabric stateful service context.</param>
+    /// <param name="settings">Cache store settings.</param>
+    /// <param name="reliableStateManagerReplica">The reliable state manager replica to use instead of the default.</param>
+    /// <param name="timeProvider">The time provider used for expiration calculations.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public BaseCacheStoreService(StatefulServiceContext context, CacheStoreSettings settings, IReliableStateManagerReplica2 reliableStateManagerReplica, TimeProvider timeProvider, ILogger<ICacheStoreService>? logger = null)
         : base(context, reliableStateManagerReplica)
     {
@@ -97,6 +118,12 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             throw new ArgumentException($"{nameof(CacheStoreSettings.ListenerName)} must not be empty.", nameof(settings));
     }
 
+    /// <summary>
+    /// Registers the <c>CacheStore</c> service property, resolves the partition count,
+    /// initializes the Reliable Dictionaries, and sets up metrics gauges.
+    /// </summary>
+    /// <param name="openMode">Indicates whether the replica is being opened as a new or existing replica.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
     protected async override Task OnOpenAsync(ReplicaOpenMode openMode, CancellationToken cancellationToken)
     {
         using var client = new FabricClient();
@@ -130,6 +157,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         _pruneCallbacks  = BuildRetryCallbacksForOperation("prune");
     }
 
+    /// <inheritdoc/>
     protected override Task OnCloseAsync(CancellationToken cancellationToken)
     {
         // ObservableGauge<T> does not implement IDisposable; instruments share the Meter lifetime.
@@ -137,6 +165,12 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         return base.OnCloseAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Returns the cached bytes for <paramref name="key"/>, sliding the expiration window when applicable.
+    /// Returns <c>null</c> and evicts the entry if expired.
+    /// </summary>
+    /// <param name="key">The cache key to retrieve.</param>
+    /// <returns>The cached bytes, or <c>null</c> if absent or expired.</returns>
     public async Task<byte[]?> GetCachedItemAsync(string key)
     {
         var sw = Stopwatch.StartNew();
@@ -190,6 +224,13 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         }
     }
     
+    /// <summary>
+    /// Inserts or updates the entry for <paramref name="key"/>, promoting it to the MRU position.
+    /// </summary>
+    /// <param name="key">The cache key to store.</param>
+    /// <param name="value">The raw bytes to cache.</param>
+    /// <param name="slidingExpiration">Optional sliding expiration window; recalculates absolute expiry on each set.</param>
+    /// <param name="absoluteExpiration">Optional hard expiry timestamp.</param>
     public async Task SetCachedItemAsync(string key, byte[] value, TimeSpan? slidingExpiration, DateTimeOffset? absoluteExpiration)
     {
         var sw = Stopwatch.StartNew();
@@ -255,6 +296,10 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         }
     }
 
+    /// <summary>
+    /// Removes the entry for <paramref name="key"/> if it exists.
+    /// </summary>
+    /// <param name="key">The cache key to remove.</param>
     public Task RemoveCachedItemAsync(string key) => TryRemoveCachedItemAsync(key);
 
     /// <summary>
@@ -299,11 +344,15 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         return removed;
     }
 
+    /// <summary>Creates the SF remoting listener for this cache store partition.</summary>
+    /// <returns>An enumerable containing the single <see cref="ServiceReplicaListener"/> for this service.</returns>
     protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
     {
         yield return new ServiceReplicaListener(context => new FabricTransportServiceRemotingListener(context, this), this.settings.ListenerName);
     }
 
+    /// <summary>Runs the LRU pruning and expiration scan background loops until cancelled.</summary>
+    /// <param name="cancellationToken">A token that signals the service is shutting down.</param>
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
         await Task.WhenAll(
@@ -403,11 +452,10 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     }
 
     /// <summary>
-    /// Removes the least recently used cache items from the cache when over maximum size.
+    /// Removes or re-queues the least-recently-used item when the partition exceeds its size limit.
+    /// Expired items are evicted; non-expired items are moved to the MRU tail.
     /// </summary>
-    /// <remarks>This is rather odd in that nothing is removed when it is expiring</remarks>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns></returns>
     protected async Task RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize(CancellationToken cancellationToken)
     {
         var cacheStore = CacheStore;

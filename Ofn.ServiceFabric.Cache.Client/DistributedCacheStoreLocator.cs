@@ -16,6 +16,10 @@ using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Microsoft.ServiceFabric.Services.Remoting.V2.FabricTransport.Client;
 using Ofn.ServiceFabric.Cache.Abstractions;
 
+/// <summary>
+/// Routes cache keys to the correct Service Fabric partition using MD5 hashing and Int64Range partition resolution.
+/// The cache store URI is either taken from options or auto-discovered by scanning the cluster.
+/// </summary>
 public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisposable
 {
     private const string CacheStoreProperty = "CacheStore";
@@ -44,6 +48,11 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
 
     private bool _disposed;
 
+    /// <summary>
+    /// Initializes a new <see cref="DistributedCacheStoreLocator"/>.
+    /// </summary>
+    /// <param name="options">Configuration options including the optional service URI and endpoint name.</param>
+    /// <param name="logger">Logger for diagnostic and discovery output.</param>
     public DistributedCacheStoreLocator(IOptions<ServiceFabricCacheOptions> options, ILogger<DistributedCacheStoreLocator> logger)
     {
         var fabricOptions = options.Value;
@@ -60,6 +69,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
             : new Lazy<Task<Uri?>>(() => DiscoverWithMetricsAsync(), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
+    /// <inheritdoc/>
     public async Task<ICacheStoreService> GetCacheStoreProxy(string cacheKey, CancellationToken cancellationToken = default)
     {
         var resolvedUri = await _lazyServiceUri.Value.ConfigureAwait(false);
@@ -93,6 +103,14 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
         return uri;
     }
 
+    /// <summary>
+    /// Creates the SF remoting proxy for the partition at <paramref name="uri"/> identified by <paramref name="partitionKey"/>.
+    /// Virtual to allow substitution in tests.
+    /// </summary>
+    /// <param name="uri">The service URI of the cache store.</param>
+    /// <param name="partitionKey">The partition key identifying the target partition.</param>
+    /// <param name="endpoint">The remoting listener endpoint name.</param>
+    /// <returns>An <see cref="ICacheStoreService"/> proxy for the specified partition.</returns>
     protected internal virtual ICacheStoreService CreateCacheStoreProxy(Uri uri, ServicePartitionKey partitionKey, string endpoint)
     {
         return _serviceProxyFactory.CreateServiceProxy<ICacheStoreService>(
@@ -158,9 +176,22 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
         return partition.PartitionInformation;
     }
 
+    /// <summary>
+    /// Fetches the partition list for the cache service at <paramref name="uri"/> from the SF cluster.
+    /// Virtual to allow substitution in tests.
+    /// </summary>
+    /// <param name="uri">The service URI whose partition list is fetched.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The list of partitions for the service.</returns>
     protected internal virtual Task<ServicePartitionList> FetchPartitionListAsync(Uri uri, CancellationToken cancellationToken = default)
         => fabricClient.QueryManager.GetPartitionListAsync(uri, null, TimeSpan.FromSeconds(30), cancellationToken);
 
+    /// <summary>
+    /// Scans all applications and services in the SF cluster for one advertising the <c>CacheStore = "true"</c> property.
+    /// Virtual to allow substitution in tests.
+    /// </summary>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The URI of the discovered cache store service, or <c>null</c> if not found.</returns>
     protected internal virtual async Task<Uri?> LocateCacheStoreAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Starting cache store auto-discovery.");
@@ -253,6 +284,7 @@ public class DistributedCacheStoreLocator : IDistributedCacheStoreLocator, IDisp
         return false;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (!_disposed)

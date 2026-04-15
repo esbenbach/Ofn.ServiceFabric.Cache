@@ -3,8 +3,17 @@ using System.IO;
 
 namespace Ofn.ServiceFabric.Cache;
 
+/// <summary>
+/// Metadata record tracking the aggregate size and head/tail keys of the LRU linked list for a single partition.
+/// </summary>
 public sealed class CacheStoreMetadata
 {
+    /// <summary>
+    /// Initializes a new <see cref="CacheStoreMetadata"/>.
+    /// </summary>
+    /// <param name="size">Current aggregate byte size of all cached items in this partition.</param>
+    /// <param name="firstCacheKey">Key of the least-recently-used (LRU) item, or <c>null</c> when empty.</param>
+    /// <param name="lastCacheKey">Key of the most-recently-used (MRU) item, or <c>null</c> when empty.</param>
     public CacheStoreMetadata(long size, string? firstCacheKey, string? lastCacheKey)
     {
         Size = size;
@@ -12,8 +21,13 @@ public sealed class CacheStoreMetadata
         LastCacheKey = lastCacheKey;
     }
 
+    /// <summary>Current aggregate byte size of all cached items in this partition.</summary>
     public long Size { get; private set; }
+
+    /// <summary>Key of the least-recently-used (LRU) item, or <c>null</c> when empty.</summary>
     public string? FirstCacheKey { get; private set; }
+
+    /// <summary>Key of the most-recently-used (MRU) item, or <c>null</c> when empty.</summary>
     public string? LastCacheKey { get; private set; }
 }
 
