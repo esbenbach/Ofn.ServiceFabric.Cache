@@ -72,10 +72,10 @@ stages:
     - task: NuGetCommand@2
       displayName: "Push to Nightly feed"
       inputs:
-        command: push
+        command: 'push'
         packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg'
-        nuGetFeedType: internal
-        publishVstsFeed: 'Nightly'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: 'e2fd64d8-17bc-4049-ae9e-516b802e2f24/3aab0a34-a52c-46dd-ab70-81b4a647ab9c'
 
 - stage: Release
   displayName: 'Publish to NuGet.org'
