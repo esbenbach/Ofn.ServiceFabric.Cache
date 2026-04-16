@@ -24,7 +24,8 @@
         <PackageProjectUrl>https://github.com/esbenbach/Ofn.ServiceFabric.Cache</PackageProjectUrl>
         <RepositoryType>git</RepositoryType>
         <Copyright></Copyright>
-        <Version>0.0.0-local</Version>
+        <Version Condition="'$(PACKAGE_VERSION)' != ''">$(PACKAGE_VERSION)</Version>
+        <Version Condition="'$(PACKAGE_VERSION)' == ''">0.0.0-local</Version>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 

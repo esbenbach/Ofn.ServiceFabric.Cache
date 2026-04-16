@@ -35,6 +35,8 @@ stages:
         command: build
         projects: '$(projectPaths)'
         arguments: '--configuration $(buildConfiguration) --no-restore'
+      env:
+        PACKAGE_VERSION: $(Build.BuildNumber)-preview
 
     - task: DotNetCoreCLI@2
       displayName: "dotnet test"
@@ -64,7 +66,9 @@ stages:
         command: pack
         packagesToPack: '$(projectPaths)'
         nobuild: true
-        arguments: '--configuration $(buildConfiguration) -p:Version=$(Build.BuildNumber)-preview'
+        arguments: '--configuration $(buildConfiguration)'
+      env:
+        PACKAGE_VERSION: $(Build.BuildNumber)-preview
 
     - task: NuGetAuthenticate@1
       displayName: "Authenticate with Azure Artifacts"
@@ -109,6 +113,8 @@ stages:
               command: build
               projects: '$(projectPaths)'
               arguments: '--configuration $(buildConfiguration) --no-restore'
+            env:
+              PACKAGE_VERSION: $(Build.BuildNumber)
 
           - task: DotNetCoreCLI@2
             displayName: "dotnet pack (release)"
@@ -116,7 +122,9 @@ stages:
               command: pack
               packagesToPack: '$(projectPaths)'
               nobuild: true
-              arguments: '--configuration $(buildConfiguration) -p:Version=$(Build.BuildNumber)'
+              arguments: '--configuration $(buildConfiguration)'
+            env:
+              PACKAGE_VERSION: $(Build.BuildNumber)
 
           - task: NuGetCommand@2
             displayName: "Push to NuGet.org"
