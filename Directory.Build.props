@@ -6,6 +6,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <EnablePackageValidation>true</EnablePackageValidation>
     </PropertyGroup>
     
     <PropertyGroup>
@@ -22,7 +24,13 @@
         <PackageProjectUrl>https://github.com/esbenbach/Ofn.ServiceFabric.Cache</PackageProjectUrl>
         <RepositoryType>git</RepositoryType>
         <Copyright></Copyright>
-        <Version>0.1.0-alpha1</Version>    
+        <Version Condition="'$(PACKAGE_VERSION)' != ''">$(PACKAGE_VERSION)</Version>
+        <Version Condition="'$(PACKAGE_VERSION)' == ''">0.0.0-local</Version>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
 
 </Project>

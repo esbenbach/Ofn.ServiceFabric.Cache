@@ -5,6 +5,10 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Ofn.ServiceFabric.Cache.Abstractions;
 
+/// <summary>
+/// Implements <see cref="IDistributedCache"/> backed by a Service Fabric stateful cache store,
+/// routing keys to the correct partition via <see cref="IDistributedCacheStoreLocator"/>.
+/// </summary>
 public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
 {
     private readonly IDistributedCacheStoreLocator _distributedCacheStoreLocator;
@@ -22,6 +26,12 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
     /// <summary>Pre-populated <see cref="TagList"/> with the <c>cache_store_id</c> tag.</summary>
     private readonly TagList _storeIdTag;
 
+    /// <summary>
+    /// Initializes a new <see cref="ServiceFabricDistributedCache"/>.
+    /// </summary>
+    /// <param name="options">Cache options including the store ID and default expiration.</param>
+    /// <param name="distributedCacheStoreLocator">Locator that resolves the cache store proxy for a given key.</param>
+    /// <param name="timeProvider">Time provider used for computing absolute expiration values.</param>
     public ServiceFabricDistributedCache(IOptions<ServiceFabricCacheOptions> options, IDistributedCacheStoreLocator distributedCacheStoreLocator, TimeProvider timeProvider)
     {
         _cacheStoreId = options.Value.CacheStoreId;
@@ -43,6 +53,12 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         return Task.Run(() => GetAsync(key)).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Retrieves the cached bytes for <paramref name="key"/>, or <c>null</c> if absent.
+    /// </summary>
+    /// <param name="key">The cache key to retrieve.</param>
+    /// <param name="token">A token to cancel the operation.</param>
+    /// <returns>The cached bytes, or <c>null</c> if the entry does not exist.</returns>
     public async Task<byte[]?> GetAsync(string key, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -81,6 +97,11 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         Task.Run(() => RefreshAsync(key)).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Resets the sliding expiration for <paramref name="key"/> by performing a get.
+    /// </summary>
+    /// <param name="key">The cache key whose expiration window should be reset.</param>
+    /// <param name="token">A token to cancel the operation.</param>
     public async Task RefreshAsync(string key, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -98,6 +119,11 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         Task.Run(() => RemoveAsync(key)).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Removes the cache entry for <paramref name="key"/>.
+    /// </summary>
+    /// <param name="key">The cache key to remove.</param>
+    /// <param name="token">A token to cancel the operation.</param>
     public async Task RemoveAsync(string key, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -134,6 +160,15 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         Task.Run(() => SetAsync(key, value, options)).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Stores <paramref name="value"/> under <paramref name="key"/> with the supplied expiration options.
+    /// Throws <see cref="InvalidOperationException"/> when no expiration is provided and
+    /// <see cref="ServiceFabricCacheOptions.DefaultSlidingExpiration"/> is <c>null</c>.
+    /// </summary>
+    /// <param name="key">The cache key to store.</param>
+    /// <param name="value">The raw bytes to cache.</param>
+    /// <param name="options">Expiration options for the cache entry.</param>
+    /// <param name="token">A token to cancel the operation.</param>
     public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -193,6 +228,7 @@ public class ServiceFabricDistributedCache : IDistributedCache, IDisposable
         return null;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (_distributedCacheStoreLocator is IDisposable disposable)

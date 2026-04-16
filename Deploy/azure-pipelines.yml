@@ -1,3 +1,5 @@
+name: $(Date:yyyy.M.d).$(Rev:r)
+
 trigger:
 - master
 
@@ -8,53 +10,126 @@ variables:
   projectPaths: '**/Ofn.ServiceFabric.Cache*.csproj'
   buildConfiguration: 'Release'
 
-steps:
-- task: UseDotNet@2
-  displayName: "Install .NET SDK 10.x"
-  inputs:
-    packageType: 'sdk'
-    version: '10.x'
-    includePreviewVersions: true
+stages:
+- stage: CI
+  displayName: 'Build, Test & Publish Nightly'
+  jobs:
+  - job: Build
+    steps:
+    - task: UseDotNet@2
+      displayName: "Install .NET SDK 10.x"
+      inputs:
+        packageType: 'sdk'
+        version: '10.x'
+        includePreviewVersions: true
 
-- task: DotNetCoreCLI@2
-  displayName: "dotnet restore"
-  inputs:
-    command: restore
-    projects: '$(projectPaths)'
+    - task: DotNetCoreCLI@2
+      displayName: "dotnet restore"
+      inputs:
+        command: restore
+        projects: '$(projectPaths)'
 
-- task: DotNetCoreCLI@2
-  displayName: "dotnet build"
-  inputs:
-    command: build
-    projects: '$(projectPaths)'
-    arguments: '--configuration $(buildConfiguration) --no-restore'
+    - task: DotNetCoreCLI@2
+      displayName: "dotnet build"
+      inputs:
+        command: build
+        projects: '$(projectPaths)'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+      env:
+        PACKAGE_VERSION: $(Build.BuildNumber)-preview
 
-- task: DotNetCoreCLI@2
-  displayName: "dotnet test"
-  inputs:
-    command: test
-    projects: '**/test/**/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory $(Agent.TempDirectory)/TestResults'
-    publishTestResults: false
+    - task: DotNetCoreCLI@2
+      displayName: "dotnet test"
+      inputs:
+        command: test
+        projects: '**/test/**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory $(Agent.TempDirectory)/TestResults'
+        publishTestResults: false
 
-- task: PublishTestResults@2
-  displayName: "Publish test results"
-  condition: always()
-  inputs:
-    testResultsFormat: VSTest
-    testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
-    failTaskOnFailedTests: true
+    - task: PublishTestResults@2
+      displayName: "Publish test results"
+      condition: always()
+      inputs:
+        testResultsFormat: VSTest
+        testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
+        failTaskOnFailedTests: true
 
-- task: PublishCodeCoverageResults@2
-  displayName: "Publish code coverage"
-  condition: always()
-  inputs:
-    summaryFileLocation: '$(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml'
+    - task: PublishCodeCoverageResults@2
+      displayName: "Publish code coverage"
+      condition: always()
+      inputs:
+        summaryFileLocation: '$(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml'
 
-- task: DotNetCoreCLI@2
-  displayName: "dotnet pack"
-  inputs:
-    command: pack
-    packagesToPack: '$(projectPaths)'
-    nobuild: true
-    arguments: '--configuration $(buildConfiguration)'
+    - task: DotNetCoreCLI@2
+      displayName: "dotnet pack (preview)"
+      inputs:
+        command: pack
+        packagesToPack: '$(projectPaths)'
+        nobuild: true
+        arguments: '--configuration $(buildConfiguration)'
+      env:
+        PACKAGE_VERSION: $(Build.BuildNumber)-preview
+
+    - task: NuGetAuthenticate@1
+      displayName: "Authenticate with Azure Artifacts"
+
+    - task: NuGetCommand@2
+      displayName: "Push to Nightly feed"
+      inputs:
+        command: 'push'
+        packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: 'e2fd64d8-17bc-4049-ae9e-516b802e2f24/3aab0a34-a52c-46dd-ab70-81b4a647ab9c'
+
+- stage: Release
+  displayName: 'Publish to NuGet.org'
+  dependsOn: CI
+  jobs:
+  - deployment: PublishToNuGet
+    displayName: 'Pack & publish to NuGet.org'
+    environment: 'NuGet-Release'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: UseDotNet@2
+            displayName: "Install .NET SDK 10.x"
+            inputs:
+              packageType: 'sdk'
+              version: '10.x'
+              includePreviewVersions: true
+
+          - task: DotNetCoreCLI@2
+            displayName: "dotnet restore"
+            inputs:
+              command: restore
+              projects: '$(projectPaths)'
+
+          - task: DotNetCoreCLI@2
+            displayName: "dotnet build"
+            inputs:
+              command: build
+              projects: '$(projectPaths)'
+              arguments: '--configuration $(buildConfiguration) --no-restore'
+            env:
+              PACKAGE_VERSION: $(Build.BuildNumber)
+
+          - task: DotNetCoreCLI@2
+            displayName: "dotnet pack (release)"
+            inputs:
+              command: pack
+              packagesToPack: '$(projectPaths)'
+              nobuild: true
+              arguments: '--configuration $(buildConfiguration)'
+            env:
+              PACKAGE_VERSION: $(Build.BuildNumber)
+
+          - task: NuGetCommand@2
+            displayName: "Push to NuGet.org"
+            inputs:
+              command: push
+              packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg'
+              nuGetFeedType: external
+              publishFeedCredentials: 'NuGet.org'

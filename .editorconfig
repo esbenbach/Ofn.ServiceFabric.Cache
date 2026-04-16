@@ -1,0 +1,14 @@
+root = true
+
+# Default settings for all C# files
+[*.cs]
+charset = utf-8-bom
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Silence missing-XML-doc warnings in test and benchmark projects.
+# These projects are not published as NuGet packages and do not require public API documentation.
+[{test,Benchmark}/**.cs]
+dotnet_diagnostic.CS1591.severity = none

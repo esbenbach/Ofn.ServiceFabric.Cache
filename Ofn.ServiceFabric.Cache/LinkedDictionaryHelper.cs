@@ -8,21 +8,40 @@ using System.Threading.Tasks;
 
 namespace Ofn.ServiceFabric.Cache;
 
+/// <summary>
+/// Pure helper that computes the change set required to maintain the LRU doubly-linked list across
+/// <see cref="CachedItem"/> entries without writing directly to the state manager.
+/// </summary>
 public readonly struct LinkedDictionaryHelper
 {
     private readonly Func<string, Task<ConditionalValue<CachedItem>>> _getCacheItem;
     private readonly int _byteSizeOffset;
 
+    /// <summary>
+    /// Initializes a helper with zero byte-size offset.
+    /// </summary>
+    /// <param name="getCacheItem">Delegate that resolves a <see cref="CachedItem"/> by key within the current transaction.</param>
     public LinkedDictionaryHelper(Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem) : this(getCacheItem, 0)
     {
     }
 
+    /// <summary>
+    /// Initializes a helper.
+    /// </summary>
+    /// <param name="getCacheItem">Delegate that resolves a <see cref="CachedItem"/> by key within the current transaction.</param>
+    /// <param name="byteSizeOffset">Fixed byte overhead added to or subtracted from the aggregate size on each mutation.</param>
     public LinkedDictionaryHelper(Func<string, Task<ConditionalValue<CachedItem>>> getCacheItem, int byteSizeOffset)
     {
         _getCacheItem = getCacheItem;
         _byteSizeOffset = byteSizeOffset;
     }
-   
+
+    /// <summary>
+    /// Computes the changes required to unlink <paramref name="cachedItem"/> from the list.
+    /// </summary>
+    /// <param name="cacheStoreMetadata">Current partition metadata containing list head/tail and aggregate size.</param>
+    /// <param name="cachedItem">The item to remove from the linked list.</param>
+    /// <returns>A <see cref="LinkedDictionaryItemsChanged"/> describing all items to update.</returns>
     public async Task<LinkedDictionaryItemsChanged> Remove(CacheStoreMetadata cacheStoreMetadata, CachedItem cachedItem)
     {
         var before = cachedItem.BeforeCacheKey;
@@ -80,6 +99,14 @@ public readonly struct LinkedDictionaryHelper
         return new LinkedDictionaryItemsChanged(newCachedItems, metadata);
     }
 
+    /// <summary>
+    /// Computes the changes required to append the item for <paramref name="cacheItemKey"/> at the MRU (tail) end of the list.
+    /// </summary>
+    /// <param name="cacheStoreMetadata">Current partition metadata containing list head/tail and aggregate size.</param>
+    /// <param name="cacheItemKey">The key of the item being added or promoted to the tail.</param>
+    /// <param name="cachedItem">The existing or new <see cref="CachedItem"/> whose expiration settings are preserved.</param>
+    /// <param name="newValue">The raw byte payload to store for <paramref name="cacheItemKey"/>.</param>
+    /// <returns>A <see cref="LinkedDictionaryItemsChanged"/> describing all items to update.</returns>
     public async Task<LinkedDictionaryItemsChanged> AddLast(CacheStoreMetadata cacheStoreMetadata, string cacheItemKey, CachedItem cachedItem, byte[] newValue)
     {
         var cachedDictionary = new Dictionary<string, CachedItem>();
@@ -113,6 +140,11 @@ public readonly struct LinkedDictionaryHelper
     }
 }
 
+/// <summary>
+/// Represents the set of items to write to Reliable Dictionaries after a linked-list mutation.
+/// </summary>
+/// <param name="CachedItemsToUpdate">Items whose linked-list pointers must be updated.</param>
+/// <param name="CacheStoreMetadata">Updated metadata reflecting the new list head, tail, and aggregate size.</param>
 public sealed record LinkedDictionaryItemsChanged(
     IReadOnlyDictionary<string, CachedItem> CachedItemsToUpdate,
     CacheStoreMetadata CacheStoreMetadata);
