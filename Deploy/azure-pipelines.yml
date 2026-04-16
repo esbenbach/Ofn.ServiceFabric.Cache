@@ -83,7 +83,6 @@ stages:
 
 - stage: Release
   displayName: 'Publish to NuGet.org'
-  dependsOn: CI
   trigger: manual
   jobs:
   - deployment: PublishToNuGet
