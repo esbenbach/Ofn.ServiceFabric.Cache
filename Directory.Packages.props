@@ -13,7 +13,7 @@
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.7" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
     <PackageVersion Include="Microsoft.ServiceFabric.AspNetCore.Kestrel" Version="8.4.268" />
     <PackageVersion Include="Microsoft.ServiceFabric.Services" Version="8.4.268" />
     <PackageVersion Include="Microsoft.ServiceFabric.Services.Remoting" Version="8.4.268" />
