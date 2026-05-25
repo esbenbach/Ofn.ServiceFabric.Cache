@@ -74,9 +74,37 @@ All reads and writes go through `RetryHelper.ExecuteWithRetry`, which opens a tr
 
 - **`CachedItem` is immutable.** All modifications create a new instance. Never add mutable setters.
 - **`LinkedDictionaryHelper` is pure.** It returns change sets (`LinkedDictionaryItemsChanged`) without touching the state manager. Keep it that way.
-- **`Shared.targets`** is imported by all NuGet-published `.csproj` files for shared package metadata (author, license, version).
+- **`Directory.Build.props`** holds shared package metadata (author, license, version) and reads `PACKAGE_VERSION` from the environment. Local builds default to `0.0.0-local`.
 - **Tests use `[Theory, AutoMoqData]`** (AutoFixture + AutoMoq). Use `[Frozen]` to inject shared mocks, `[Greedy]` to select the most-parameterised constructor of the SUT. No SF cluster is needed—`IReliableStateManagerReplica2` is mocked.
 - **`StubCacheStoreService`** (inner class in `BaseCacheStoreServiceTest`) is the concrete test double for `BaseCacheStoreService`. Use `[Greedy]` so AutoFixture picks its 4-param ctor `(StatefulServiceContext, IReliableStateManagerReplica2, TimeProvider, ILogger?)`. Call `SetupInMemoryStores` to wire in-memory dictionaries and set the `_cacheStore`/`_cacheStoreMetadata` fields on the stub.
 - **`AutoMoqData` registers `FakeTimeProvider`** as the fixture implementation of `TimeProvider`. Inject `[Frozen] FakeTimeProvider` into tests to control the clock.
 - **SF SDK 8.4+ telemetry**: `StatefulServiceBase..ctor` calls telemetry that reads `ICodePackageActivationContext` string properties. `AutoMoqData` sets these up with non-null stubs; replicate this when building `StatefulServiceContext` outside the fixture.
 - **`ICacheStoreService` extends `IService`** (SF remoting marker interface). Any changes to its method signatures require regenerating the remoting proxy.
+- **Item size accounting**: each item's reported size is `value.Length + ByteSizeOffset`. `ByteSizeOffset` defaults to 250 (configurable via `CacheStoreSettings.ByteSizeOffset`). Tests that assert on `metadata.Size` must account for this offset.
+
+## CI/CD
+
+The project uses **GitHub Actions** (`.github/workflows/ci-release.yml`) for continuous integration and release publishing.
+
+### Pipeline Jobs
+
+| Job | Trigger | What it does |
+|-----|---------|--------------|
+| **CI** | Push to `main` | Build → test → pack with CalVer-preview → push to GitHub Packages |
+| **Release** | Manual approval (environment gate) | Rebuild without `-preview` → push to NuGet.org → create GitHub Release |
+
+### Versioning
+
+- Format: `yyyy.M.d.{run_number}` (CalVer). CI appends `-preview`.
+- `PACKAGE_VERSION` env var is set by the workflow; `Directory.Build.props` reads it.
+- Local builds produce `0.0.0-local` by default.
+
+### Secrets & Environments
+
+- `NUGET_API_KEY` repository secret for NuGet.org.
+- `NuGet-Release` environment with required reviewer gate for the Release job.
+- `GITHUB_TOKEN` (built-in) for GitHub Packages.
+
+### Legacy
+
+`Deploy/azure-pipelines.yml` is an Azure DevOps pipeline kept for reference. It is deprecated in favour of GitHub Actions.
