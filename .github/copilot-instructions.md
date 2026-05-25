@@ -23,6 +23,8 @@ dotnet pack --no-build
 
 All projects target **net10.0** with `<Nullable>enable</Nullable>` and `<ImplicitUsings>enable</ImplicitUsings>` (set in `Directory.Build.props`). All package versions are managed centrally in `Directory.Packages.props` (CPM). Do not add `Version` attributes to `<PackageReference>` elements in `.csproj` files.
 
+`TreatWarningsAsErrors` and `GenerateDocumentationFile` are both enabled globally. **All public APIs must have XML doc comments** (`<summary>` at minimum) or the build will fail.
+
 ## Architecture
 
 This is a distributed cache implemented on top of Azure Service Fabric Reliable Services, exposing a standard `IDistributedCache` interface.
@@ -64,7 +66,9 @@ All reads and writes go through `RetryHelper.ExecuteWithRetry`, which opens a tr
 - If neither absolute nor sliding expiration is provided, `ServiceFabricDistributedCache.SetAsync` falls back to `ServiceFabricCacheOptions.DefaultSlidingExpiration` (defaults to 60 seconds). If `DefaultSlidingExpiration` is `null`, an `InvalidOperationException` is thrown.
 - Expiry is **lazy on read**: expired items are removed when accessed, not on a timer.
 - `BaseCacheStoreService` uses `TimeProvider` (not `DateTime.UtcNow`) for all time comparisons, enabling deterministic testing via `FakeTimeProvider`.
-- A background loop in `RunAsync` calls `RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize` every `CachePruningInterval` seconds to evict expired/LRU items when the partition exceeds `MaxCacheSize / partitionCount` bytes.
+- `RunAsync` runs **two independent background loops**:
+  1. **LRU pruning** (`CachePruningInterval` seconds): calls `RemoveLeastRecentlyUsedCacheItemWhenOverMaxSize` when the partition exceeds `MaxCacheSize / partitionCount` bytes.
+  2. **Expiration scan** (`ExpirationScanInterval` seconds, default 30): calls `RemoveExpiredCacheItemsAsync` proactively, processing up to `ExpirationScanBatchSize` items (default 500) per cycle.
 
 ### Custom Serializers
 
@@ -77,6 +81,7 @@ All reads and writes go through `RetryHelper.ExecuteWithRetry`, which opens a tr
 - **`Directory.Build.props`** holds shared package metadata (author, license, version) and reads `PACKAGE_VERSION` from the environment. Local builds default to `0.0.0-local`.
 - **Tests use `[Theory, AutoMoqData]`** (AutoFixture + AutoMoq). Use `[Frozen]` to inject shared mocks, `[Greedy]` to select the most-parameterised constructor of the SUT. No SF cluster is needed—`IReliableStateManagerReplica2` is mocked.
 - **`StubCacheStoreService`** (inner class in `BaseCacheStoreServiceTest`) is the concrete test double for `BaseCacheStoreService`. Use `[Greedy]` so AutoFixture picks its 4-param ctor `(StatefulServiceContext, IReliableStateManagerReplica2, TimeProvider, ILogger?)`. Call `SetupInMemoryStores` to wire in-memory dictionaries and set the `_cacheStore`/`_cacheStoreMetadata` fields on the stub.
+- **`CustomSettingsStubPublic`** (also in `BaseCacheStoreServiceTest`) is used when tests need non-default `CacheStoreSettings`. Construct it manually and call `InitCacheStore`/`InitCacheStoreMetadata` to wire the in-memory dictionaries; use the 2-arg `SetupInMemoryStores(stateManager, dict)` overload (without the stub arg) in this case.
 - **`AutoMoqData` registers `FakeTimeProvider`** as the fixture implementation of `TimeProvider`. Inject `[Frozen] FakeTimeProvider` into tests to control the clock.
 - **SF SDK 8.4+ telemetry**: `StatefulServiceBase..ctor` calls telemetry that reads `ICodePackageActivationContext` string properties. `AutoMoqData` sets these up with non-null stubs; replicate this when building `StatefulServiceContext` outside the fixture.
 - **`ICacheStoreService` extends `IService`** (SF remoting marker interface). Any changes to its method signatures require regenerating the remoting proxy.
@@ -99,9 +104,9 @@ The project uses **GitHub Actions** (`.github/workflows/ci-release.yml`) for con
 - `PACKAGE_VERSION` env var is set by the workflow; `Directory.Build.props` reads it.
 - Local builds produce `0.0.0-local` by default.
 
-### Secrets & Environments
+### Authentication & Environments
 
-- `NUGET_API_KEY` repository secret for NuGet.org.
+- **NuGet.org** uses **Trusted Publishing** (OIDC via `NuGet/login@v1`) — no API key secret needed.
 - `NuGet-Release` environment with required reviewer gate for the Release job.
 - `GITHUB_TOKEN` (built-in) for GitHub Packages.
 
