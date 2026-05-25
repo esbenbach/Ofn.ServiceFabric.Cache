@@ -66,13 +66,25 @@ dotnet pack
 
 ## Configuration
 
-### Secrets (GitHub Settings → Secrets → Actions)
+### NuGet.org Trusted Publishing (OIDC)
 
-| Secret | Purpose |
-|--------|---------|
-| `NUGET_API_KEY` | API key for pushing to NuGet.org |
+This project uses **Trusted Publishing** to authenticate with NuGet.org — no long-lived API keys needed.
 
-`GITHUB_TOKEN` is provided automatically by GitHub Actions.
+How it works:
+1. The release job requests an OIDC token from GitHub.
+2. NuGet.org validates the token against a trusted publisher policy you configure.
+3. A short-lived (~1 hour) API key is issued for this workflow run only.
+4. Packages are pushed with that ephemeral key.
+
+**One-time setup on nuget.org:**
+1. Go to [nuget.org → Account → Trusted Publishing](https://www.nuget.org/account/trusted-publishers).
+2. Add a new trusted publisher with:
+   - **Repository Owner:** `esbenbach`
+   - **Repository:** `Ofn.ServiceFabric.Cache`
+   - **Workflow File:** `ci-release.yml`
+   - **Environment:** `NuGet-Release`
+
+No `NUGET_API_KEY` secret is required. `GITHUB_TOKEN` is provided automatically by GitHub Actions.
 
 ### Environment (GitHub Settings → Environments)
 

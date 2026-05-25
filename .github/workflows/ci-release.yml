@@ -87,6 +87,7 @@ jobs:
     permissions:
       contents: write
       packages: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -110,8 +111,14 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ needs.ci.outputs.release_version }}
 
+      - name: Authenticate with NuGet.org (Trusted Publishing)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: esbenbach
+
       - name: Push to NuGet.org
-        run: dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+        run: dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
