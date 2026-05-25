@@ -58,7 +58,7 @@ dotnet pack         # produces 0.0.0-local.nupkg
 
 To simulate a specific version locally:
 
-```sh
+```pwsh
 $env:PACKAGE_VERSION = "1.0.0-test"
 dotnet build
 dotnet pack
