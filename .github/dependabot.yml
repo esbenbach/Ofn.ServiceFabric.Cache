@@ -8,9 +8,7 @@ updates:
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "05:00"
+      interval: "daily"
     open-pull-requests-limit: 10
 
     labels:
@@ -26,3 +24,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 20
