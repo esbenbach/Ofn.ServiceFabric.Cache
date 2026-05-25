@@ -1,0 +1,130 @@
+name: CI & Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+env:
+  DOTNET_VERSION: "10.x"
+  BUILD_CONFIG: Release
+
+jobs:
+  ci:
+    name: Build, Test & Publish Preview
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      packages: write
+      checks: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Compute version
+        id: version
+        shell: pwsh
+        run: |
+          $now = Get-Date -AsUTC
+          $version = "$($now.Year).$($now.Month).$($now.Day).${{ github.run_number }}"
+          echo "RELEASE_VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "PREVIEW_VERSION=$version-preview" >> $env:GITHUB_OUTPUT
+          echo "Computed version: $version"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration ${{ env.BUILD_CONFIG }} --no-restore
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.PREVIEW_VERSION }}
+
+      - name: Test
+        run: dotnet test --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory ${{ runner.temp }}/TestResults
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results
+          path: "${{ runner.temp }}/TestResults/**/*.trx"
+          reporter: dotnet-trx
+
+      - name: Pack (preview)
+        run: dotnet pack --configuration ${{ env.BUILD_CONFIG }} --no-build --output ${{ runner.temp }}/packages
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.PREVIEW_VERSION }}
+
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
+          dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source github --skip-duplicate
+        env:
+          DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: 1
+
+      - name: Upload packages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-preview
+          path: ${{ runner.temp }}/packages/*.nupkg
+          retention-days: 30
+
+    outputs:
+      release_version: ${{ steps.version.outputs.RELEASE_VERSION }}
+      preview_version: ${{ steps.version.outputs.PREVIEW_VERSION }}
+
+  release:
+    name: Publish to NuGet.org
+    needs: ci
+    runs-on: windows-latest
+    environment: NuGet-Release
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration ${{ env.BUILD_CONFIG }} --no-restore
+        env:
+          PACKAGE_VERSION: ${{ needs.ci.outputs.release_version }}
+
+      - name: Pack (release)
+        run: dotnet pack --configuration ${{ env.BUILD_CONFIG }} --no-build --output ${{ runner.temp }}/packages
+        env:
+          PACKAGE_VERSION: ${{ needs.ci.outputs.release_version }}
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.ci.outputs.release_version }}
+          name: v${{ needs.ci.outputs.release_version }}
+          body: |
+            ## Packages
+
+            - `Ofn.ServiceFabric.Cache` v${{ needs.ci.outputs.release_version }}
+            - `Ofn.ServiceFabric.Cache.Client` v${{ needs.ci.outputs.release_version }}
+            - `Ofn.ServiceFabric.Cache.Abstractions` v${{ needs.ci.outputs.release_version }}
+
+            Published to [NuGet.org](https://www.nuget.org/profiles/esbenbach).
+          files: ${{ runner.temp }}/packages/*.nupkg
+          generate_release_notes: true

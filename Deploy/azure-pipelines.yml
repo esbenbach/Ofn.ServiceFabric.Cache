@@ -1,3 +1,6 @@
+# DEPRECATED: This pipeline has been superseded by GitHub Actions (.github/workflows/ci-release.yml).
+# It is kept here for reference during the transition period and can be removed once the migration is verified.
+
 name: $(Date:yyyy.M.d).$(Rev:r)
 
 trigger:
