@@ -8,6 +8,9 @@ on:
 env:
   DOTNET_VERSION: "10.x"
   BUILD_CONFIG: Release
+  PROJECT_FILTER: "Ofn.ServiceFabric.Cache*.csproj"
+  TEST_PROJECT_FILTER: "*.csproj"
+  TEST_DIR: "test"
 
 jobs:
   ci:
@@ -38,15 +41,30 @@ jobs:
           echo "Computed version: $version"
 
       - name: Restore
-        run: dotnet restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet restore $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Build
-        run: dotnet build --configuration ${{ env.BUILD_CONFIG }} --no-restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet build $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.PREVIEW_VERSION }}
 
       - name: Test
-        run: dotnet test --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory ${{ runner.temp }}/TestResults
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Path $env:TEST_DIR -Filter $env:TEST_PROJECT_FILTER | ForEach-Object {
+            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory "${{ runner.temp }}/TestResults"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Publish test results
         uses: dorny/test-reporter@v3
@@ -57,7 +75,12 @@ jobs:
           reporter: dotnet-trx
 
       - name: Pack (preview)
-        run: dotnet pack --configuration ${{ env.BUILD_CONFIG }} --no-build --output ${{ runner.temp }}/packages
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --output "${{ runner.temp }}/packages"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.PREVIEW_VERSION }}
 
@@ -99,15 +122,30 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
-        run: dotnet restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet restore $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Build
-        run: dotnet build --configuration ${{ env.BUILD_CONFIG }} --no-restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet build $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ needs.ci.outputs.release_version }}
 
       - name: Pack (release)
-        run: dotnet pack --configuration ${{ env.BUILD_CONFIG }} --no-build --output ${{ runner.temp }}/packages
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --output "${{ runner.temp }}/packages"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ needs.ci.outputs.release_version }}
 
