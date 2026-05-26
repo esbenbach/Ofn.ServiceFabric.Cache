@@ -90,7 +90,10 @@ jobs:
         run: |
           $packagesDir = Join-Path $env:RUNNER_TEMP "packages"
           dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
-          dotnet nuget push "$packagesDir/*.nupkg" --source github --skip-duplicate
+          Get-ChildItem $packagesDir -Filter "*.nupkg" | ForEach-Object {
+            dotnet nuget push $_.FullName --source github --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: 1
 
@@ -163,7 +166,10 @@ jobs:
         shell: pwsh
         run: |
           $packagesDir = Join-Path $env:RUNNER_TEMP "packages"
-          dotnet nuget push "$packagesDir/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate
+          Get-ChildItem $packagesDir -Filter "*.nupkg" | ForEach-Object {
+            dotnet nuget push $_.FullName --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
