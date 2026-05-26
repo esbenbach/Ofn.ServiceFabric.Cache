@@ -61,9 +61,8 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
-          $resultsDir = Join-Path $env:RUNNER_TEMP "TestResults"
           Get-ChildItem -Recurse -Path $env:TEST_DIR -Filter $env:TEST_PROJECT_FILTER | ForEach-Object {
-            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory $resultsDir
+            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -72,7 +71,7 @@ jobs:
         if: always()
         with:
           name: Test Results
-          path: "${{ runner.temp }}/TestResults/**/*.trx"
+          path: "TestResults/**/*.trx"
           reporter: dotnet-trx
 
       - name: Pack (preview)
@@ -87,9 +86,11 @@ jobs:
           PACKAGE_VERSION: ${{ steps.version.outputs.PREVIEW_VERSION }}
 
       - name: Push to GitHub Packages
+        shell: pwsh
         run: |
+          $packagesDir = Join-Path $env:RUNNER_TEMP "packages"
           dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
-          dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source github --skip-duplicate
+          dotnet nuget push "$packagesDir/*.nupkg" --source github --skip-duplicate
         env:
           DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: 1
 
@@ -159,7 +160,10 @@ jobs:
           user: esbenbach
 
       - name: Push to NuGet.org
-        run: dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate
+        shell: pwsh
+        run: |
+          $packagesDir = Join-Path $env:RUNNER_TEMP "packages"
+          dotnet nuget push "$packagesDir/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
