@@ -61,8 +61,9 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
+          $resultsDir = Join-Path $env:RUNNER_TEMP "TestResults"
           Get-ChildItem -Recurse -Path $env:TEST_DIR -Filter $env:TEST_PROJECT_FILTER | ForEach-Object {
-            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory "${{ runner.temp }}/TestResults"
+            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory $resultsDir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -77,8 +78,9 @@ jobs:
       - name: Pack (preview)
         shell: pwsh
         run: |
+          $outputDir = Join-Path $env:RUNNER_TEMP "packages"
           Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
-            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --output "${{ runner.temp }}/packages"
+            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --output $outputDir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
         env:
@@ -142,8 +144,9 @@ jobs:
       - name: Pack (release)
         shell: pwsh
         run: |
+          $outputDir = Join-Path $env:RUNNER_TEMP "packages"
           Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
-            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --output "${{ runner.temp }}/packages"
+            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --output $outputDir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
         env:
