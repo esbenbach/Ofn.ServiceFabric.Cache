@@ -20,6 +20,7 @@ using Xunit;
 /// Tests that <see cref="BaseCacheStoreService"/> emits the expected
 /// System.Diagnostics.Metrics measurements for each cache operation.
 /// </summary>
+[Collection("Metrics")]
 public class CacheMetricsTest
 {
     // ──────────────────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ using Xunit;
 /// <summary>
 /// Tests for <see cref="BaseCacheStoreService.RemoveExpiredCacheItemsAsync"/>.
 /// </summary>
+[Collection("Metrics")]
 public class ExpirationScanTest
 {
     // ──────────────────────────────────────────────────────────────────────────
