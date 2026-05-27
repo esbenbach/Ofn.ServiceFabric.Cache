@@ -161,7 +161,7 @@ jobs:
         uses: NuGet/login@v1
         id: nuget-login
         with:
-          user: esbenbach
+          user: Esben
 
       - name: Push to NuGet.org
         shell: pwsh
@@ -184,6 +184,6 @@ jobs:
             - `Ofn.ServiceFabric.Cache.Client` v${{ needs.ci.outputs.release_version }}
             - `Ofn.ServiceFabric.Cache.Abstractions` v${{ needs.ci.outputs.release_version }}
 
-            Published to [NuGet.org](https://www.nuget.org/profiles/esbenbach).
+            Published to [NuGet.org](https://www.nuget.org/profiles/Esben).
           files: ${{ runner.temp }}/packages/*.nupkg
           generate_release_notes: true
