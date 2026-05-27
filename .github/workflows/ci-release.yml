@@ -62,7 +62,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem -Recurse -Path $env:TEST_DIR -Filter $env:TEST_PROJECT_FILTER | ForEach-Object {
-            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
+            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --no-restore --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
