@@ -90,6 +90,7 @@ jobs:
         run: |
           $packagesDir = Join-Path $env:RUNNER_TEMP "packages"
           dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem $packagesDir -Filter "*.nupkg" | ForEach-Object {
             dotnet nuget push $_.FullName --source github --skip-duplicate
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
