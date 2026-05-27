@@ -8,6 +8,9 @@ on:
 env:
   DOTNET_VERSION: "10.x"
   BUILD_CONFIG: Release
+  PROJECT_FILTER: "Ofn.ServiceFabric.Cache*.csproj"
+  TEST_PROJECT_FILTER: "*.csproj"
+  TEST_DIR: "test"
 
 jobs:
   ci:
@@ -38,33 +41,60 @@ jobs:
           echo "Computed version: $version"
 
       - name: Restore
-        run: dotnet restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet restore $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Build
-        run: dotnet build --configuration ${{ env.BUILD_CONFIG }} --no-restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet build $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.PREVIEW_VERSION }}
 
       - name: Test
-        run: dotnet test --configuration ${{ env.BUILD_CONFIG }} --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory ${{ runner.temp }}/TestResults
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Path $env:TEST_DIR -Filter $env:TEST_PROJECT_FILTER | ForEach-Object {
+            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --no-restore --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Publish test results
         uses: dorny/test-reporter@v3
         if: always()
         with:
           name: Test Results
-          path: "${{ runner.temp }}/TestResults/**/*.trx"
+          path: "TestResults/**/*.trx"
           reporter: dotnet-trx
 
       - name: Pack (preview)
-        run: dotnet pack --configuration ${{ env.BUILD_CONFIG }} --no-build --output ${{ runner.temp }}/packages
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:RUNNER_TEMP "packages"
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --no-restore --output $outputDir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.PREVIEW_VERSION }}
 
       - name: Push to GitHub Packages
+        shell: pwsh
         run: |
+          $packagesDir = Join-Path $env:RUNNER_TEMP "packages"
           dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
-          dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source github --skip-duplicate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem $packagesDir -Filter "*.nupkg" | ForEach-Object {
+            dotnet nuget push $_.FullName --source github --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: 1
 
@@ -99,15 +129,31 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
-        run: dotnet restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet restore $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Build
-        run: dotnet build --configuration ${{ env.BUILD_CONFIG }} --no-restore
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet build $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ needs.ci.outputs.release_version }}
 
       - name: Pack (release)
-        run: dotnet pack --configuration ${{ env.BUILD_CONFIG }} --no-build --output ${{ runner.temp }}/packages
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:RUNNER_TEMP "packages"
+          Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
+            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --no-restore --output $outputDir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
         env:
           PACKAGE_VERSION: ${{ needs.ci.outputs.release_version }}
 
@@ -118,7 +164,13 @@ jobs:
           user: esbenbach
 
       - name: Push to NuGet.org
-        run: dotnet nuget push "${{ runner.temp }}/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate
+        shell: pwsh
+        run: |
+          $packagesDir = Join-Path $env:RUNNER_TEMP "packages"
+          Get-ChildItem $packagesDir -Filter "*.nupkg" | ForEach-Object {
+            dotnet nuget push $_.FullName --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

@@ -20,6 +20,7 @@ using Xunit;
 /// Tests that <see cref="DistributedCacheStoreLocator"/> emits the expected
 /// System.Diagnostics.Metrics measurements for service discovery and partition-list refresh.
 /// </summary>
+[Collection("Metrics")]
 public class DistributedCacheStoreLocatorMetricsTest
 {
     // ──────────────────────────────────────────────────────────────────────────

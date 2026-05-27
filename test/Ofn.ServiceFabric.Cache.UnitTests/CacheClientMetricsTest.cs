@@ -16,6 +16,7 @@ using Xunit;
 /// Tests that <see cref="ServiceFabricDistributedCache"/> emits the expected
 /// System.Diagnostics.Metrics measurements for each client-side operation.
 /// </summary>
+[Collection("Metrics")]
 public class CacheClientMetricsTest
 {
     private static readonly Guid TestCacheStoreId = Guid.Parse("11111111-1111-1111-1111-111111111111");
