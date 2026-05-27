@@ -79,7 +79,7 @@ jobs:
         run: |
           $outputDir = Join-Path $env:RUNNER_TEMP "packages"
           Get-ChildItem -Recurse -Filter $env:PROJECT_FILTER | ForEach-Object {
-            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --output $outputDir
+            dotnet pack $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --no-restore --output $outputDir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
         env:
