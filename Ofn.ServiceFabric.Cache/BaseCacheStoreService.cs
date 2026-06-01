@@ -163,17 +163,24 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     /// </summary>
     /// <param name="newRole">The new replica role.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    protected override async Task OnChangeRoleAsync(ReplicaRole newRole, CancellationToken cancellationToken)
-    {
-        if (newRole == ReplicaRole.Primary)
-        {
-            _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-            _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
-        }
+protected override async Task OnChangeRoleAsync(ReplicaRole newRole, CancellationToken cancellationToken)
+{
+    cancellationToken.ThrowIfCancellationRequested();
 
-        await base.OnChangeRoleAsync(newRole, cancellationToken);
+    if (newRole == ReplicaRole.Primary)
+    {
+        _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+        _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
     }
+    else
+    {
+        _cacheStore = null;
+        _cacheStoreMetadata = null;
+    }
 
+    await base.OnChangeRoleAsync(newRole, cancellationToken);
+}
+
     /// <inheritdoc/>
     protected override Task OnCloseAsync(CancellationToken cancellationToken)
     {
