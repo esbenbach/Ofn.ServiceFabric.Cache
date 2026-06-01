@@ -120,8 +120,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     /// <summary>
     /// Registers the <c>CacheStore</c> service property, resolves the partition count,
-    /// and sets up metrics gauges. Reliable Dictionaries are initialized at the top of
-    /// <see cref="RunAsync"/> once the replica is promoted to Primary and the state manager is fully readable.
+    /// and sets up metrics gauges. Reliable Dictionaries are initialized at the top of
+    /// <see cref="RunAsync"/> once the replica is promoted to Primary and the state manager is fully readable.
     /// </summary>
     /// <param name="openMode">Indicates whether the replica is being opened as a new or existing replica.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -133,9 +133,7 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
         _partitionIdTag = Partition.PartitionInfo.Id.ToString();
 
-        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
-
-
+        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
 
         // Register observable gauges for this partition's size and size limit.
         // Each gauge reports a single Measurement tagged with the partition ID so that
@@ -175,27 +173,24 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         return base.OnChangeRoleAsync(newRole, cancellationToken);
     }
 
-    /// <inheritdoc/>
-
-
     /// <inheritdoc/>
     protected override async Task OnCloseAsync(CancellationToken cancellationToken)
     {
-
-        try
-        {
-            // Ensure base.OnCloseAsync completes, which will wait for RunAsync background loops
-            // to exit gracefully before calling any low-level KTL cleanup.
-            await base.OnCloseAsync(cancellationToken);
-        }
-        finally
-        {
-            // Clear dictionary references to avoid holding locks if an exception occurs during cleanup.
-            _cacheStore = null;
-            _cacheStoreMetadata = null;
-        }
-        _cacheStore = null;
-        _cacheStoreMetadata = null;
+        // ObservableGauge<T> does not implement IDisposable; instruments share the Meter lifetime.
+        // The fields are retained so a future SDK version that adds IDisposable can opt in here.
+
+        // Ensure base.OnCloseAsync completes, which will wait for RunAsync background loops
+        // to exit gracefully before calling any low-level KTL cleanup.
+        try
+        {
+            await base.OnCloseAsync(cancellationToken);
+        }
+        finally
+        {
+            // Clear dictionary references to avoid holding locks if an exception occurs during cleanup.
+            _cacheStore = null;
+            _cacheStoreMetadata = null;
+        }
     }
 
     /// <summary>
@@ -392,9 +387,9 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         try
         {
             // Initialize Reliable Dictionaries now that the state manager is fully readable.
-            _cacheStore ??= await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(
+            // This must happen in RunAsync, not OnChangeRoleAsync, because the state manager
             // is not readable during the role transition.
-            _cacheStoreMetadata ??= await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(
+            _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(
                 CacheStoreConstants.CacheStoreName);
             _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(
                 CacheStoreConstants.CacheStoreMetadataName);
