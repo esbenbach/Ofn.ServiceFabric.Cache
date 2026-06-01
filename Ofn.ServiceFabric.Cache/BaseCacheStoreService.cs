@@ -101,10 +101,10 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     }
 
     private IReliableDictionary<string, CachedItem> CacheStore =>
-        _cacheStore ?? throw new InvalidOperationException("Cache store has not been initialized. Ensure OnOpenAsync completes before processing requests.");
+        _cacheStore ?? throw new InvalidOperationException("Cache store has not been initialized. The replica must be promoted to Primary before processing requests.");
 
     private IReliableDictionary<string, CacheStoreMetadata> CacheStoreMetadataDict =>
-        _cacheStoreMetadata ?? throw new InvalidOperationException("Cache metadata store has not been initialized. Ensure OnOpenAsync completes before processing requests.");
+        _cacheStoreMetadata ?? throw new InvalidOperationException("Cache metadata store has not been initialized. The replica must be promoted to Primary before processing requests.");
 
     private static void ValidateSettings(CacheStoreSettings settings)
     {
@@ -120,7 +120,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     /// <summary>
     /// Registers the <c>CacheStore</c> service property, resolves the partition count,
-    /// initializes the Reliable Dictionaries, and sets up metrics gauges.
+    /// and sets up metrics gauges. Reliable Dictionaries are initialized in
+    /// <see cref="OnChangeRoleAsync"/> once the replica is promoted to Primary.
     /// </summary>
     /// <param name="openMode">Indicates whether the replica is being opened as a new or existing replica.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -129,11 +130,11 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         using var client = new FabricClient();
         await client.PropertyManager.PutPropertyAsync(serviceUri, CacheStoreProperty, CacheStorePropertyValue, TimeSpan.FromSeconds(30), cancellationToken);
         partitionCount = (await client.QueryManager.GetPartitionListAsync(serviceUri, null, TimeSpan.FromSeconds(30), cancellationToken)).Count;
-        _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-        _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
 
         _partitionIdTag = Partition.PartitionInfo.Id.ToString();
 
+        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
+
         // Register observable gauges for this partition's size and size limit.
         // Each gauge reports a single Measurement tagged with the partition ID so that
         // multi-partition deployments can be aggregated or filtered in the metrics backend.
@@ -149,20 +150,44 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             "By",
             "Per-partition cache size limit");
 
-        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
-
         _getCallbacks    = BuildRetryCallbacksForOperation("get");
         _setCallbacks    = BuildRetryCallbacksForOperation("set");
         _removeCallbacks = BuildRetryCallbacksForOperation("remove");
         _pruneCallbacks  = BuildRetryCallbacksForOperation("prune");
     }
 
+    /// <summary>
+    /// Cleanup when demoting from Primary. State initialization is deferred to RunAsync
+    /// so it only happens when the state manager is fully readable.
+    /// </summary>
+    /// <param name="newRole">The new replica role.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    protected override Task OnChangeRoleAsync(ReplicaRole newRole, CancellationToken cancellationToken)
+    {
+        if (newRole != ReplicaRole.Primary)
+        {
+            _cacheStore = null;
+            _cacheStoreMetadata = null;
+        }
+
+        return base.OnChangeRoleAsync(newRole, cancellationToken);
+    }
+
+
+
     /// <inheritdoc/>
-    protected override Task OnCloseAsync(CancellationToken cancellationToken)
+    protected override async Task OnCloseAsync(CancellationToken cancellationToken)
     {
         // ObservableGauge<T> does not implement IDisposable; instruments share the Meter lifetime.
         // The fields are retained so a future SDK version that adds IDisposable can opt in here.
-        return base.OnCloseAsync(cancellationToken);
+        
+        // Ensure base.OnCloseAsync completes, which will wait for RunAsync background loops
+        // to exit gracefully before calling any low-level KTL cleanup.
+        await base.OnCloseAsync(cancellationToken);
+        
+        // Clear dictionary references to avoid holding locks if an exception occurs during cleanup.
+        _cacheStore = null;
+        _cacheStoreMetadata = null;
     }
 
     /// <summary>
@@ -351,13 +376,32 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         yield return new ServiceReplicaListener(context => new FabricTransportServiceRemotingListener(context, this), this.settings.ListenerName);
     }
 
-    /// <summary>Runs the LRU pruning and expiration scan background loops until cancelled.</summary>
+    /// <summary>Initializes the Reliable Dictionaries and runs the LRU pruning and expiration scan background loops.
+    /// RunAsync is only called after the replica is promoted to Primary and the state manager is fully readable.</summary>
     /// <param name="cancellationToken">A token that signals the service is shutting down.</param>
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
-        await Task.WhenAll(
-            RunLruPruningLoopAsync(cancellationToken),
-            RunExpirationScanLoopAsync(cancellationToken));
+        try
+        {
+            // Initialize Reliable Dictionaries now that the state manager is fully readable.
+            // This must happen in RunAsync, not OnChangeRoleAsync, because the state manager
+            // is not readable during the role transition.
+            _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(
+                CacheStoreConstants.CacheStoreName);
+            _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(
+                CacheStoreConstants.CacheStoreMetadataName);
+
+            // Start background loops for LRU pruning and expiration scanning.
+            await Task.WhenAll(
+                RunLruPruningLoopAsync(cancellationToken),
+                RunExpirationScanLoopAsync(cancellationToken));
+        }
+        finally
+        {
+            // Ensure dictionaries are cleared on shutdown to avoid holding references.
+            _cacheStore = null;
+            _cacheStoreMetadata = null;
+        }
     }
 
     private async Task RunLruPruningLoopAsync(CancellationToken cancellationToken)
@@ -373,7 +417,14 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
                 logger?.LogError(ex, "Unhandled exception in cache pruning loop; pruning will resume after next interval.");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(this.settings.CachePruningInterval), cancellationToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(this.settings.CachePruningInterval), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 
@@ -381,7 +432,14 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromSeconds(this.settings.ExpirationScanInterval), cancellationToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(this.settings.ExpirationScanInterval), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
 
             try
             {

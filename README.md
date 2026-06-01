@@ -99,3 +99,17 @@ If you want to contribute, feel free to do so, here are some suggestions on how 
 * Pull Requests which expands the test coverage
 * Pull Requests for a benchmark (redis, sqlserver, service fabric)
 * Documentation! (Obviously)
+
+## Development
+
+Run unit tests and build:
+```powershell
+dotnet test
+dotnet build
+```
+
+### ⚠️ Always verify against a local SF cluster before pushing
+
+Unit tests use a mock state manager that does **not** enforce Service Fabric's replica lifecycle constraints (e.g. the state manager not being readable during `OnChangeRoleAsync`). This means tests can pass for code that will crash the service at startup.
+
+After any change to the SF lifecycle methods (`OnOpenAsync`, `OnChangeRoleAsync`, `RunAsync`, `OnCloseAsync`) or the Reliable Dictionary initialization, **deploy and run `CachingService` against a local SF dev cluster** to confirm the replica starts cleanly. Check the SF Event Log / Service Fabric Explorer for `ReplicaOpenStatus` warnings or `FabricNotReadableException` errors before pushing.
