@@ -120,8 +120,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     /// <summary>
     /// Registers the <c>CacheStore</c> service property, resolves the partition count,
-    /// and sets up metrics gauges. Reliable Dictionaries are initialized in
-    /// <see cref="OnChangeRoleAsync"/> once the replica is promoted to Primary.
+    /// and sets up metrics gauges. Reliable Dictionaries are initialized at the top of
+    /// <see cref="RunAsync"/> once the replica is promoted to Primary and the state manager is fully readable.
     /// </summary>
     /// <param name="openMode">Indicates whether the replica is being opened as a new or existing replica.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -133,8 +133,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
         _partitionIdTag = Partition.PartitionInfo.Id.ToString();
 
-        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
-
+        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
+
         // Register observable gauges for this partition's size and size limit.
         // Each gauge reports a single Measurement tagged with the partition ID so that
         // multi-partition deployments can be aggregated or filtered in the metrics backend.
@@ -157,51 +157,40 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     }
 
     /// <summary>
-    /// Initializes the Reliable Dictionaries when the replica is promoted to Primary.
-    /// The state manager only becomes writable after role assignment; <see cref="OnOpenAsync"/>
-    /// cannot safely call <c>GetOrAddAsync</c>.
+    /// Cleanup when demoting from Primary. State initialization is deferred to RunAsync
+    /// so it only happens when the state manager is fully readable.
     /// </summary>
     /// <param name="newRole">The new replica role.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-protected override async Task OnChangeRoleAsync(ReplicaRole newRole, CancellationToken cancellationToken)
-
-{
-
-    cancellationToken.ThrowIfCancellationRequested();
-
-
-    if (newRole == ReplicaRole.Primary)
-
+    protected override Task OnChangeRoleAsync(ReplicaRole newRole, CancellationToken cancellationToken)
     {
+        if (newRole != ReplicaRole.Primary)
+        {
+            _cacheStore = null;
+            _cacheStoreMetadata = null;
+        }
 
-        _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-
-        _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
-
+        return base.OnChangeRoleAsync(newRole, cancellationToken);
     }
-    else
-
-    {
-
-        _cacheStore = null;
-
-        _cacheStoreMetadata = null;
-
-    }
-
-
-    await base.OnChangeRoleAsync(newRole, cancellationToken);
-
-}
-
-
 
     /// <inheritdoc/>
-    protected override Task OnCloseAsync(CancellationToken cancellationToken)
+    protected override async Task OnCloseAsync(CancellationToken cancellationToken)
     {
         // ObservableGauge<T> does not implement IDisposable; instruments share the Meter lifetime.
         // The fields are retained so a future SDK version that adds IDisposable can opt in here.
-        return base.OnCloseAsync(cancellationToken);
+
+        // Ensure base.OnCloseAsync completes, which will wait for RunAsync background loops
+        // to exit gracefully before calling any low-level KTL cleanup.
+        try
+        {
+            await base.OnCloseAsync(cancellationToken);
+        }
+        finally
+        {
+            // Clear dictionary references to avoid holding locks if an exception occurs during cleanup.
+            _cacheStore = null;
+            _cacheStoreMetadata = null;
+        }
     }
 
     /// <summary>
@@ -390,13 +379,32 @@ protected override async Task OnChangeRoleAsync(ReplicaRole newRole, Cancellatio
         yield return new ServiceReplicaListener(context => new FabricTransportServiceRemotingListener(context, this), this.settings.ListenerName);
     }
 
-    /// <summary>Runs the LRU pruning and expiration scan background loops until cancelled.</summary>
+    /// <summary>Initializes the Reliable Dictionaries and runs the LRU pruning and expiration scan background loops.
+    /// RunAsync is only called after the replica is promoted to Primary and the state manager is fully readable.</summary>
     /// <param name="cancellationToken">A token that signals the service is shutting down.</param>
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
-        await Task.WhenAll(
-            RunLruPruningLoopAsync(cancellationToken),
-            RunExpirationScanLoopAsync(cancellationToken));
+        try
+        {
+            // Initialize Reliable Dictionaries now that the state manager is fully readable.
+            // This must happen in RunAsync, not OnChangeRoleAsync, because the state manager
+            // is not readable during the role transition.
+            _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(
+                CacheStoreConstants.CacheStoreName);
+            _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(
+                CacheStoreConstants.CacheStoreMetadataName);
+
+            // Start background loops for LRU pruning and expiration scanning.
+            await Task.WhenAll(
+                RunLruPruningLoopAsync(cancellationToken),
+                RunExpirationScanLoopAsync(cancellationToken));
+        }
+        finally
+        {
+            // Ensure dictionaries are cleared on shutdown to avoid holding references.
+            _cacheStore = null;
+            _cacheStoreMetadata = null;
+        }
     }
 
     private async Task RunLruPruningLoopAsync(CancellationToken cancellationToken)
@@ -412,7 +420,14 @@ protected override async Task OnChangeRoleAsync(ReplicaRole newRole, Cancellatio
                 logger?.LogError(ex, "Unhandled exception in cache pruning loop; pruning will resume after next interval.");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(this.settings.CachePruningInterval), cancellationToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(this.settings.CachePruningInterval), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 
@@ -420,7 +435,14 @@ protected override async Task OnChangeRoleAsync(ReplicaRole newRole, Cancellatio
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromSeconds(this.settings.ExpirationScanInterval), cancellationToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(this.settings.ExpirationScanInterval), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
 
             try
             {

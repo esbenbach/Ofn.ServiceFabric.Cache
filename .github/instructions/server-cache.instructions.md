@@ -23,7 +23,7 @@ applyTo: "Ofn.ServiceFabric.Cache/**/*.cs"
 - The meter name is `"Ofn.ServiceFabric.Cache"`.
 - All metrics are tagged with `partition_id`. Use the cached `_partitionIdTag` string field, not `Partition.PartitionInfo.Id.ToString()`.
 - Observable gauges for size/limit are created in `OnOpenAsync`, not in the constructor.
-- Reliable Dictionaries (`_cacheStore`, `_cacheStoreMetadata`) are initialized in `OnChangeRoleAsync(Primary)`, NOT in `OnOpenAsync`. The state manager is not writable during `OpenAsync`; it becomes writable only after role assignment.
+- Reliable Dictionaries (`_cacheStore`, `_cacheStoreMetadata`) are initialized at the top of `RunAsync`, NOT in `OnOpenAsync` or `OnChangeRoleAsync`. `RunAsync` is only called after the replica is promoted to Primary and the state manager is fully readable. `OnChangeRoleAsync` is called *during* the role transition when the state manager is NOT yet readable — calling `GetOrAddAsync` there causes `FabricNotReadableException`. `OnChangeRoleAsync` only nulls out the dictionary references when demoting from Primary.
 
 ## Performance conventions
 
@@ -39,3 +39,16 @@ applyTo: "Ofn.ServiceFabric.Cache/**/*.cs"
 2. **Expiration scan** — runs every `ExpirationScanInterval` seconds, inspects up to `ExpirationScanBatchSize` items.
 
 Both loops catch non-`OperationCanceledException` exceptions, log them, and continue. Never let exceptions propagate out of these loops unhandled.
+
+## Service Fabric lifecycle
+
+The SF replica lifecycle order is: `OnOpenAsync` → `OnChangeRoleAsync` → `RunAsync` → `OnCloseAsync`. Key constraints:
+
+- `OnOpenAsync`: registers the service property and resolves the partition count. **Do not** touch the state manager here.
+- `OnChangeRoleAsync`: only nulls references when demoting. **Do not** call `StateManager.GetOrAddAsync` here — the state manager is not readable during role transition.
+- `RunAsync`: only called on the Primary. This is the correct place to call `StateManager.GetOrAddAsync` and start background loops.
+- `OnCloseAsync`: always delegates to `base.OnCloseAsync`, then nulls dictionary references.
+
+## Local deployment verification
+
+**Unit tests alone are insufficient** to verify lifecycle correctness — the mock state manager does not enforce SF's readability constraints. After any change to `OnOpenAsync`, `OnChangeRoleAsync`, `RunAsync`, or `OnCloseAsync`, **you must deploy and start `CachingService` against a local SF cluster** (via Visual Studio F5 or the Deploy scripts) to confirm the replica opens and reaches Primary without errors in the SF Event Log.
