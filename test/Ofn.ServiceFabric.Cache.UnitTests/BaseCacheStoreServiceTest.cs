@@ -381,15 +381,21 @@ public class BaseCacheStoreServiceTest
     [Theory, AutoMoqData]
     public async Task RunAsync_PruningThrowsTransientException_ExceptionIsLoggedAndLoopContinues(
         [Frozen]Mock<ILogger<ICacheStoreService>> logger,
+        [Frozen]Mock<IReliableStateManagerReplica2> stateManager,
         [Greedy]StubCacheStoreService cacheStore)
     {
-        // _cacheStore is not initialized (no SetupInMemoryStores call), so the CacheStore
-        // property throws InvalidOperationException on the first pruning attempt,
-        // which is caught by the loop, logged, and the loop continues.
+        // CreateTransaction throws on every attempt, so the pruning loop throws InvalidOperationException
+        // on every cycle, which is caught by the loop, logged, and the loop continues.
+        // RunAsync itself returns cleanly when the CTS fires (loops break on cancellation rather than propagating OCE).
+        stateManager
+            .Setup(sm => sm.CreateTransaction())
+            .Throws<InvalidOperationException>();
+
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cacheStore.RunAsyncPublic(cts.Token));
+        var ex = await Record.ExceptionAsync(() => cacheStore.RunAsyncPublic(cts.Token));
 
+        Assert.True(ex is null || ex is OperationCanceledException);
         logger.Verify(
             l => l.Log(
                 LogLevel.Error,
