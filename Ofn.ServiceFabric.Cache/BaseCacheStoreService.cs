@@ -101,10 +101,10 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
     }
 
     private IReliableDictionary<string, CachedItem> CacheStore =>
-        _cacheStore ?? throw new InvalidOperationException("Cache store has not been initialized. Ensure OnOpenAsync completes before processing requests.");
+        _cacheStore ?? throw new InvalidOperationException("Cache store has not been initialized. The replica must be promoted to Primary before processing requests.");
 
     private IReliableDictionary<string, CacheStoreMetadata> CacheStoreMetadataDict =>
-        _cacheStoreMetadata ?? throw new InvalidOperationException("Cache metadata store has not been initialized. Ensure OnOpenAsync completes before processing requests.");
+        _cacheStoreMetadata ?? throw new InvalidOperationException("Cache metadata store has not been initialized. The replica must be promoted to Primary before processing requests.");
 
     private static void ValidateSettings(CacheStoreSettings settings)
     {
@@ -120,7 +120,8 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
 
     /// <summary>
     /// Registers the <c>CacheStore</c> service property, resolves the partition count,
-    /// initializes the Reliable Dictionaries, and sets up metrics gauges.
+    /// and sets up metrics gauges. Reliable Dictionaries are initialized in
+    /// <see cref="OnChangeRoleAsync"/> once the replica is promoted to Primary.
     /// </summary>
     /// <param name="openMode">Indicates whether the replica is being opened as a new or existing replica.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -129,11 +130,11 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
         using var client = new FabricClient();
         await client.PropertyManager.PutPropertyAsync(serviceUri, CacheStoreProperty, CacheStorePropertyValue, TimeSpan.FromSeconds(30), cancellationToken);
         partitionCount = (await client.QueryManager.GetPartitionListAsync(serviceUri, null, TimeSpan.FromSeconds(30), cancellationToken)).Count;
-        _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
-        _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
 
         _partitionIdTag = Partition.PartitionInfo.Id.ToString();
 
+        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
+
         // Register observable gauges for this partition's size and size limit.
         // Each gauge reports a single Measurement tagged with the partition ID so that
         // multi-partition deployments can be aggregated or filtered in the metrics backend.
@@ -149,13 +150,51 @@ public abstract class BaseCacheStoreService : StatefulService, ICacheStoreServic
             "By",
             "Per-partition cache size limit");
 
-        _maxSizeBytesPerPartition = (this.settings.MaxCacheSize * BytesInMegabyte) / partitionCount;
-
         _getCallbacks    = BuildRetryCallbacksForOperation("get");
         _setCallbacks    = BuildRetryCallbacksForOperation("set");
         _removeCallbacks = BuildRetryCallbacksForOperation("remove");
         _pruneCallbacks  = BuildRetryCallbacksForOperation("prune");
     }
+
+    /// <summary>
+    /// Initializes the Reliable Dictionaries when the replica is promoted to Primary.
+    /// The state manager only becomes writable after role assignment; <see cref="OnOpenAsync"/>
+    /// cannot safely call <c>GetOrAddAsync</c>.
+    /// </summary>
+    /// <param name="newRole">The new replica role.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+protected override async Task OnChangeRoleAsync(ReplicaRole newRole, CancellationToken cancellationToken)
+
+{
+
+    cancellationToken.ThrowIfCancellationRequested();
+
+
+    if (newRole == ReplicaRole.Primary)
+
+    {
+
+        _cacheStore = await StateManager.GetOrAddAsync<IReliableDictionary<string, CachedItem>>(CacheStoreConstants.CacheStoreName);
+
+        _cacheStoreMetadata = await StateManager.GetOrAddAsync<IReliableDictionary<string, CacheStoreMetadata>>(CacheStoreConstants.CacheStoreMetadataName);
+
+    }
+    else
+
+    {
+
+        _cacheStore = null;
+
+        _cacheStoreMetadata = null;
+
+    }
+
+
+    await base.OnChangeRoleAsync(newRole, cancellationToken);
+
+}
+
+
 
     /// <inheritdoc/>
     protected override Task OnCloseAsync(CancellationToken cancellationToken)

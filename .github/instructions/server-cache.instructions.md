@@ -23,6 +23,7 @@ applyTo: "Ofn.ServiceFabric.Cache/**/*.cs"
 - The meter name is `"Ofn.ServiceFabric.Cache"`.
 - All metrics are tagged with `partition_id`. Use the cached `_partitionIdTag` string field, not `Partition.PartitionInfo.Id.ToString()`.
 - Observable gauges for size/limit are created in `OnOpenAsync`, not in the constructor.
+- Reliable Dictionaries (`_cacheStore`, `_cacheStoreMetadata`) are initialized in `OnChangeRoleAsync(Primary)`, NOT in `OnOpenAsync`. The state manager is not writable during `OpenAsync`; it becomes writable only after role assignment.
 
 ## Performance conventions
 
