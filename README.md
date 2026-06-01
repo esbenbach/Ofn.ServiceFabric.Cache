@@ -82,7 +82,7 @@ See **[docs/telemetry.md](docs/telemetry.md)** for the full metrics reference.
 
 ## Why not just contribute to SoCreate Distributed Cache?
 
-Well there is only really one reason, I stumpled upon the SoCreate distributed cache while doing stuff at work, and found it lacked a few minor things I would like to have, but my initial PR was met with "not atm" (understandably, im not pointing fingers here).
+Well there is only really one reason, I stumbled upon the SoCreate distributed cache while doing stuff at work, and found it lacked a few minor things I would like to have, but my initial PR was met with "not atm" (understandably, I'm not pointing fingers here).
 
 I have struggled with caching before, and figured I could have this as my personal pet hobby project, while also getting stuff done at work. 
 
