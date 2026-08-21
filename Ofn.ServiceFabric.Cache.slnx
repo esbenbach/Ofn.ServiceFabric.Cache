@@ -15,6 +15,7 @@
     </Project>
   </Folder>
   <Folder Name="/Solution Items/">
+    <File Path=".github/dependabot.yml" />
     <File Path=".github/workflows/ci-release.yml" />
     <File Path="Deploy/Deploy-SFApp.ps1" />
     <File Path="Deploy/Package-SFApp.ps1" />
