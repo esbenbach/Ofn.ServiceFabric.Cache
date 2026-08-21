@@ -1,4 +1,4 @@
-namespace Ofn.ServiceFabric.Cache.UnitTests;
+﻿namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using System.Fabric;
 using System.Fabric.Query;
@@ -11,6 +11,7 @@ using Ofn.ServiceFabric.Cache.Abstractions;
 using Ofn.ServiceFabric.Cache.Client;
 using Xunit;
 
+[Collection("Metrics")]
 public class DistributedCacheStoreLocatorTest
 {
     // Note: FabricClient is sealed and new'd directly in DistributedCacheStoreLocator.
