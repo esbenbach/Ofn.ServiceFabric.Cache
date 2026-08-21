@@ -1,4 +1,4 @@
-namespace Ofn.ServiceFabric.Cache.UnitTests;
+﻿namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using AutoFixture.Xunit3;
 using Microsoft.Extensions.Caching.Distributed;
@@ -8,6 +8,7 @@ using Ofn.ServiceFabric.Cache.Abstractions;
 using Ofn.ServiceFabric.Cache.Client;
 using Xunit;
 
+[Collection("Metrics")]
 public class ServiceFabricDistributedCacheTest
 {
     private static readonly Guid TestCacheStoreId = Guid.Parse("11111111-1111-1111-1111-111111111111");

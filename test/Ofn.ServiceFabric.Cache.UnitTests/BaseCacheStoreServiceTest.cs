@@ -1,4 +1,4 @@
-namespace Ofn.ServiceFabric.Cache.UnitTests;
+﻿namespace Ofn.ServiceFabric.Cache.UnitTests;
 
 using System.Collections.Generic;
 using System.Fabric;
@@ -11,6 +11,7 @@ using Moq;
 using Ofn.ServiceFabric.Cache.Abstractions;
 using Xunit;
 
+[Collection("Metrics")]
 public class BaseCacheStoreServiceTest
 {
     [Theory, AutoMoqData]
