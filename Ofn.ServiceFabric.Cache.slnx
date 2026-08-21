@@ -15,7 +15,7 @@
     </Project>
   </Folder>
   <Folder Name="/Solution Items/">
-    <File Path="azure-pipelines.yml" />
+    <File Path=".github/workflows/ci-release.yml" />
     <File Path="Deploy/Deploy-SFApp.ps1" />
     <File Path="Deploy/Package-SFApp.ps1" />
     <File Path="Deploy/Remove-SFApp.ps1" />
