@@ -3,6 +3,8 @@ name: CI & Release
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch: {}
 
 env:
@@ -62,7 +64,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem -Recurse -Path $env:TEST_DIR -Filter $env:TEST_PROJECT_FILTER | ForEach-Object {
-            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --no-restore --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
+            dotnet test $_.FullName --configuration ${{ env.BUILD_CONFIG }} --no-build --no-restore --report-trx
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -112,6 +114,7 @@ jobs:
   release:
     name: Publish to NuGet.org
     needs: ci
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     environment: NuGet-Release
     permissions:
