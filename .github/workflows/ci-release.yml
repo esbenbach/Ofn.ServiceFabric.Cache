@@ -3,6 +3,8 @@ name: CI & Release
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch: {}
 
 env:
@@ -112,6 +114,7 @@ jobs:
   release:
     name: Publish to NuGet.org
     needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     environment: NuGet-Release
     permissions:
