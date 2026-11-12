@@ -16,7 +16,7 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="[10.0.0,)" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.1" />
     <PackageVersion Include="Microsoft.ServiceFabric.AspNetCore.Kestrel" Version="8.8.121" />
-    <PackageVersion Include="Microsoft.ServiceFabric.Actors" Version="8.6.239" />
+    <PackageVersion Include="Microsoft.ServiceFabric.Actors" Version="8.8.121" />
     <PackageVersion Include="Microsoft.ServiceFabric.Services" Version="8.8.121" />
     <PackageVersion Include="Microsoft.ServiceFabric.Services.Remoting" Version="8.8.121" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.2" />
